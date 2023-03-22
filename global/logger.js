@@ -25,9 +25,9 @@ class Logger {
   async saveLog(origin, action, payload) {
     try {
       const logEntity = {
-        partitionKey: origin,
+        partitionKey: action,
         rowKey: new Date().toISOString(),
-        action: action,
+        origin: origin,
         payload: JSON.stringify(payload),
         timestamp: new Date()
       };
@@ -46,11 +46,11 @@ class Logger {
   
       if (filter) {
         let filterString = '';
-        if (filter.origin) {
-          filterString += `PartitionKey eq '${filter.origin}'`;
-        }
         if (filter.action) {
-          filterString += (filterString ? ' and ' : '') + `action eq '${filter.action}'`;
+          filterString += `PartitionKey eq '${filter.action}'`;
+        }
+        if (filter.origin) {
+          filterString += (filterString ? ' and ' : '') + `action eq '${filter.origin}'`;
         }
         if (filter.startTime && filter.endTime) {
           filterString += (filterString ? ' and ' : '') + `timestamp gt ${filter.startTime} and timestamp lt ${filter.endTime}`;

@@ -1,25 +1,24 @@
 const util = require("../global/util.js");
 module.exports = async function (context, req) {
-
-    let responseMessage = "Hello, World!";
-    let message = { data: 'some queue data' };
-
-    // util.logger.saveLog("origin1", "action1", { data: 'some data' });    
-    // util.queue.enqueueMessage(message);
- /*   util.logger.fetchLogs({ origin: "origin1", action: "action1" })
-        .then(logs => context.log(logs))
-        .catch(error => context.error(error));*/
-    
+    // set default response
+    let response = util.Response.unauthorized();
+    // get origin from query string or body
+    const origin = (req.query.origin || req.body && req.body.origin);
+    // get action from query string or body
+    const action = (req.query.action || req.body && req.body.action);
+    // get action and payload from query string or body
     try {
-        const logs = await util.logger.fetchLogs({ origin: "origin1", action: "action1" });
-        context.log(logs);
-        responseMessage += logs;
-
+        const logs = await util.logger.fetchLogs({ origin: origin, action: action });
+        response = util.Response.success(logs);
     } catch (error) {
-        context.log(error);
-    }   
-        
-    context.res = {
-        body: responseMessage
-    };
+        // return error response in devlopenment
+        if(util.environment === "development") {
+            response = util.Response.internalServerError(error);
+
+        } else {
+            response = util.Response.unauthorized();
+        } 
+    }
+    // return response           
+    context.res = response;
 }

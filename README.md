@@ -1,3 +1,111 @@
-{"data":{"method":"GET","url":"http://localhost:7071/api/log?name=integrateTestTemplate","originalUrl":"http://localhost:7071/api/log?name=integrateTestTemplate","headers":{"connection":"keep-alive","accept":"*/*","accept-encoding":"gzip, deflate, br","host":"localhost:7071","user-agent":"PostmanRuntime/7.31.1","postman-token":"e8f5cfa0-9c96-4816-a939-c611fcb7c3bd"},"query":{"name":"integrateTestTemplate"},"params":{}}}
+# Introduction
+This integration launchpad comes with full features set optimized to build agains Geins Management API.
 
-{"data":{"invocationId":"c8b5d8e3-11a7-4f7a-a204-a21844cdf80b","traceContext":{"traceparent":"","tracestate":"","attributes":{}},"executionContext":{"invocationId":"c8b5d8e3-11a7-4f7a-a204-a21844cdf80b","functionName":"log","functionDirectory":"/Users/krille/Documents/Devs/00 GEINS/sdks/integration/log","retryContext":null},"bindings":{"req":{"method":"GET","url":"http://localhost:7071/api/log?name=integrateTestTemplate","originalUrl":"http://localhost:7071/api/log?name=integrateTestTemplate","headers":{"connection":"keep-alive","accept":"*/*","accept-encoding":"gzip, deflate, br","host":"localhost:7071","user-agent":"PostmanRuntime/7.31.1","postman-token":"31346c38-c8f0-4f8b-ad49-1c94ef23938d"},"query":{"name":"integrateTestTemplate"},"params":{}}},"bindingData":{"invocationId":"c8b5d8e3-11a7-4f7a-a204-a21844cdf80b","name":"integrateTestTemplate","query":{"name":"integrateTestTemplate"},"headers":{"connection":"keep-alive","accept":"*/*","accept-Encoding":"gzip, deflate, br","host":"localhost:7071","user-Agent":"PostmanRuntime/7.31.1","postman-Token":"31346c38-c8f0-4f8b-ad49-1c94ef23938d"},"sys":{"methodName":"log","utcNow":"2023-03-22T06:47:00.911Z","randGuid":"24876550-f826-448a-946f-a4b12f5cd062"}},"bindingDefinitions":[{"name":"req","type":"httpTrigger","direction":"in"},{"name":"res","type":"http","direction":"out"}],"req":{"method":"GET","url":"http://localhost:7071/api/log?name=integrateTestTemplate","originalUrl":"http://localhost:7071/api/log?name=integrateTestTemplate","headers":{"connection":"keep-alive","accept":"*/*","accept-encoding":"gzip, deflate, br","host":"localhost:7071","user-agent":"PostmanRuntime/7.31.1","postman-token":"31346c38-c8f0-4f8b-ad49-1c94ef23938d"},"query":{"name":"integrateTestTemplate"},"params":{}},"res":{"headers":{},"cookies":[]}}}
+## Pre-requisites
+- Node.js
+- Azure Account (Storage Account, Table Storage, Queue Storage) [Get a fee account here](https://azure.microsoft.com/en-us/free/)
+- Geins Management API Account. [Get a free trial here](https://www.geins.io)
+
+
+## Features
+- [x] Authentication
+- [x] Geins API Client
+- [x] Logging in Azure Table Storage
+- [x] Queue Storage
+- [x] Queue Trigger
+- [x] HTTP Trigger
+- [x] Timer Trigger
+- [x] Log search via http request and response
+
+
+
+### Authentication
+@azure/core-auth is used for authentication. You can find more information here: https://www.npmjs.com/package/@azure/core-auth
+
+- For the table storage and queue storage, you can use the connection string or credentials. 
+- For the Geins API, you use api-user credentialas and api-key. Read more at docs.geins.io.
+
+Update the `local.settings.json` file with your credentials:
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "ENVIRONMENT" : "development",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_ACCOUNT_NAME": "YOUR_ACCOUNT_NAME",
+    "AZURE_ACCOUNT_KEY": "YOUT_ACCOUNT_KEY",
+    "AZURE_TABLE_NAME": "log",
+    "AZURE_QUEUE_NAME": "queue-items",
+    "GEINS_MGMT_API_KEY": "YOUR_API_KEY",
+    "GEINS_MGMT_API_USERMAME": "YOUR_API_USERNAME",
+    "GEINS_MGMT_API_PASSWORD": "YOuR_API_PASSWORD",
+  }
+}
+```
+
+
+### Logging
+The logging is done via the `Logger` class that is exposed throug the `util` module as `logger`. The logger is configured to log to Azure Table Storage. The table name is configured in the `local.settings.json` file.
+
+To log a message, use the `saveLog` method:
+```javascript
+util.logger.saveLog(origin, action, payload);
+```
+| Parameter | Info | Example |
+|-|-|-|
+| origin | Origin of request | `PostmanRuntime/7.31.1` or IP |
+| action | Action | `syncUser` |
+| payload | Payload | `{ text: 'Hello World! '}` | 
+
+### Queue Storage
+The queue storage is configured to use the `AZURE_QUEUE_NAME` from the `local.settings.json` file. The queue storage is used to store the queue items that are used to trigger the queue trigger.
+
+### HTTP Trigger
+Trigger to put action and payload in the queue. The queue item is a JSON object with the following structure:
+```json
+{
+  "action": "syncUser",
+  "payload": {
+    "id": "1234567890",
+    "name": "John Doe"
+  }
+}
+```
+
+### Log search 
+Exposed throug an HTTP trigger. The log search is done via the `fetchLogs` class that is exposed throug the `util` module as `logger.fetchLogs(filter)`. Filter is an object with the following structure:
+```javascript
+{ 
+    origin: 'PostmanRuntime/7.31.1', 
+    action: 'sendEmail',
+}
+```
+
+### Timer Trigger
+Used to put a queue item in the queue. Schedule for the timer trigger is configured in the `function.json` file. Schedule is a cron expression see the documentation here: https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-timer?tabs=csharp#ncrontab-expressions.
+
+The queue item is a JSON object with the following structure:
+```json
+{
+  "action": "syncUser",
+  "payload": {
+    "id": "1234567890",
+    "name": "John Doe"
+  }
+}
+```
+
+### Queue Trigger
+Trigger to process the queue items. The queue item is a JSON object with the following structure:
+```json
+{
+  "action": "syncUser",
+  "payload": {
+    "id": "1234567890",
+    "name": "John Doe"
+  }
+}
+```
+
+
+

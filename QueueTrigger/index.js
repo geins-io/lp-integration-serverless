@@ -1,4 +1,11 @@
-module.exports = async function (context, myQueueItem) {
-    const item = myQueueItem;
-    context.log('JavaScript queue trigger function processed work item:: ', item.data);
+const util = require("../global/util.js");
+module.exports = async function (context, item) {
+    // get the queue message and process it
+    const action = item.action;
+    const payload = item.payload;
+    // log the action and payload
+    if(util.environment === "development") {
+        context.log('Action -> ', action);
+        context.log('Payload -> ', payload);
+    }
 };

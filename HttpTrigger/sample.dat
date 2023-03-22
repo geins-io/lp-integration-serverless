@@ -1,4 +1,4 @@
 {
     "action": "action",
-    "origin": "trigger",
+    "payload": "payload",
 }
