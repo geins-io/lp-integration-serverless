@@ -1,7 +1,7 @@
 const util = require("../global/util.js");
 module.exports = async function (context, item) {
     // get the queue message and process it
-    const action = new new util.Action('queueTrigger', item.action, item.payload);
+    const action = new util.Action('queueTrigger', item.action, item.payload);
     // log the action and payload
     if(util.environment === "development") {
         context.log('Action -> ', action.action);
@@ -17,7 +17,7 @@ module.exports = async function (context, item) {
         case "user-sync":
             // update an existing record
             break;
-        case "delete":
+        case "user-delete":
             // delete an existing record
             break;
         default:

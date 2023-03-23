@@ -21,10 +21,13 @@ class Logger {
       }
     }
   }
-  
+
   async saveActionToLog(actionObj) {
     try {
       const { origin, action, payload, family } = actionObj;
+      if(family) {
+        action = `${family}-${action}`;
+      }
       this.saveLog(origin, action, payload, family);
     } catch (error) {
       console.error("Error saving log:", error.message);
