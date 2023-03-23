@@ -142,5 +142,14 @@ Trigger to process the queue items. The queue item is a JSON object with the fol
 }
 ```
 
+## Actions
+The actions are used to process the queue items. The actions are located in the `actions` folder. The actions are exposed throug the `actions` module. The actions are used in the `queueTrigger` function.
+
+## Parsers
+The parsers are used to parse the queue items. The parsers are located in the `parsers` folder. The parsers are exposed throug the `parsers` module. The parsers are used in the `queueTrigger` function. 
+
+## Output
+The output is used to output the result of the queue item. The output is located in the `output` folder. The output is exposed throug the `output` module. The output is used in the `queueTrigger` function.
+
 
 
