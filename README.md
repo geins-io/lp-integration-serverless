@@ -142,5 +142,32 @@ Trigger to process the queue items. The queue item is a JSON object with the fol
 }
 ```
 
+## Actions
+An action is a function that is used to process the queue item. The action is a function that is exposed throug the `actions` module. The action is a function that is used in the `queueTrigger` function.
+
+| Variable | Info | Example |
+|-|-|-|
+| origin | Origin of request | `queue-trigger` |
+| action | Action | `sync` |
+| family | Family | `user` |
+| output | Output | `action.output.push(new util.Output(util.OutputType.API_PUSH, new util.MyParser()));` |
+| payload | Payload | `{ text: 'Hello World! '}` |
+
+## Output
+The Output class is used to output the result of the queue item. An Output object has the following structure:
+```javascript
+new util.Output(util.OutputType.API_PUSH, new util.MyParser());
+```
+| Variable | Info | Example |
+|-|-|-|
+| type | Type of output | `API_PUSH` |
+| parser | Parser | `new util.MyParser()` |
+
+## OutputType
+The OutputType enum is used to define the type of output. The OutputType enum is exposed throug the `util` module as `OutputType`. The OutputType enum is used in the `Output` class.
+
+## Parsers
+Parser is added to an Output object. The parser is used to parse the result of the queue item. Parser must implement the `parse` method. The `parse` method is used to parse the result of the queue item. The `parse` method is used in the `queueTrigger` function.
+
 
 

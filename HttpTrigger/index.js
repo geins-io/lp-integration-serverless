@@ -2,12 +2,15 @@ const util = require("../global/util.js");
 module.exports = async function (context, req) {
     // set default response
     let response = util.Response.unauthorized();
-    // get origin from context user-Agent
-    const origin = context.req.headers['user-agent'];
+    // get origin from request headers ["X-Forwarded-Client-Ip"]
+    let origin = context.bindingData.sys.methodName;    
+    if(req.headers["X-Forwarded-Client-Ip"]) {
+        origin += `/${req.headers["X-Forwarded-Client-Ip"]}`;
+    }    
     // get action and payload from query string or body
-    const action =  (req.query.action || req.body && req.body.action);
-    const payload =  (req.query.payload || req.body && req.body.payload); 
-    const object = { action: action, payload: payload };
+    const action = (req.query.action || req.body && req.body.action);
+    const payload = (req.query.payload || req.body && req.body.payload); 
+    const object = { action: action, payload: payload, origin: origin };
     //log request
     util.logger.saveLog(origin, action, object);
     // validate action and payload
