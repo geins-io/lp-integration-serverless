@@ -14,9 +14,21 @@ class Action {
     } 
         
     this.origin = origin;
-    this.output = {};
+    this.output = [];
     this.payload = payload;
   }
+  familyAndAction() {
+    return `${this.family}-${this.action}`;
+  }
+  run() {
+    if(!this.output.length) throw new Error("Action is required");
+    // loop through the output and process it
+    this.output.forEach(output => {
+      output.parser.parse(output, this);
+    });
+
+  }
+    
 }
 
 module.exports = Action;

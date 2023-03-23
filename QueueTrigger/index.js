@@ -7,27 +7,25 @@ module.exports = async function (context, item) {
     // get the queue message and process it
     let action = new util.Action(origin, item.action, item.payload);
     // log the action and payload
-    if(util.environment === "development") {
-        context.log('Origin ->      ', action.origin);
-        context.log('Action ->      ', action.action);
-        context.log('Action Family -> ', action.family);
-        context.log('Payload ->     ', action.payload);
-    }    
     util.logger.saveActionToLog(action);
     // process the action
-    switch(action) {
-        case "user-sync":
-            // create a new record
-            break;
-        case "user-sync":
-            // update an existing record
-            break;
-        case "user-delete":
-            // delete an existing record
+    switch(action.familyAndAction()) {
+        case "family-action":
+            // add parser to the output and output to the action
+            const parser = new util.MyParser();
+            action.output.push(new util.Output(util.OutputType.API_PUSH, parser));            
             break;
         default:
-            // log the error
+            // log error
             context.log('Invalid action -> ', action);            
             break;
     }
+    // run action and catch any errors
+    try {
+        action.run();
+    } catch (error) {
+        // log the error
+        context.log('Error -> ', error);
+    }
+    
 };
