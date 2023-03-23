@@ -17,6 +17,41 @@ This integration launchpad comes with full features set optimized to build again
 - [x] Timer Trigger
 - [x] Log search via http request and response
 
+## Getting started 
+Run the following command to install the dependencies:
+```bash
+npm install
+```
+
+Add the `local.settings.json` file to the root of the project. The `local.settings.json` file is used to store the credentials for the Azure Storage Account and Geins Management API. The `local.settings.json` file is not checked in to the repository.
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "ENVIRONMENT" : "development",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AZURE_ACCOUNT_NAME": "YOUR_ACCOUNT_NAME",
+    "AZURE_ACCOUNT_KEY": "YOUT_ACCOUNT_KEY",
+    "AZURE_TABLE_NAME": "log",
+    "AZURE_QUEUE_NAME": "queue-items",
+    "GEINS_MGMT_API_KEY": "YOUR_API_KEY",
+    "GEINS_MGMT_API_USERMAME": "YOUR_API_USERNAME",
+    "GEINS_MGMT_API_PASSWORD": "YOuR_API_PASSWORD",
+    "ENVIRONMENT" : "development",
+    "AzureWebJobsStorage": "AZURE_STORAGE_ACCOUNT_CONNECTION_STRING"
+  },
+  "Host": {
+    "CORS": "*"
+  }
+}
+```
+
+Run the following command to start the function app:
+```bash
+func start
+```
+
 
 
 ### Authentication
@@ -38,7 +73,7 @@ Update the `local.settings.json` file with your credentials:
     "AZURE_QUEUE_NAME": "queue-items",
     "GEINS_MGMT_API_KEY": "YOUR_API_KEY",
     "GEINS_MGMT_API_USERMAME": "YOUR_API_USERNAME",
-    "GEINS_MGMT_API_PASSWORD": "YOuR_API_PASSWORD",
+    "GEINS_MGMT_API_PASSWORD": "YOuR_API_PASSWORD"
   }
 }
 ```
