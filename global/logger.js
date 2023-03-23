@@ -69,6 +69,24 @@ class Logger {
       return [];
     }
   }
+
+  async getLatestTimestamp(action) {
+    try {
+      const queryOptions = {
+        filter: `PartitionKey eq '${action}'`,
+        top: 1,
+        orderBy: [{ timestamp: "desc" }]
+      };
+      const entities = this.tableClient.listEntities(queryOptions);
+      for await (const entity of entities) {
+        return entity.timestamp;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching latest timestamp:", error.message);
+      return null;
+    }
+  }
   
 }
 
