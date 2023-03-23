@@ -2,9 +2,9 @@ const util = require("../global/util.js");
 module.exports = async function (context, myTimer) {    
     var timeStamp = new Date().toISOString();
     // sample object for log and queue
-    const object = { action: 'action', payload: 'payload' };        
+    const object = { action: 'family-action', payload: 'payload', origin: 'timer-trigger' };        
     //log request
-    util.logger.saveLog('trigger', object.action, object);
+    util.logger.saveLog('timer-trigger', object.action, object);
     // put in queue
     util.queue.enqueueMessage(object);
     if (myTimer.isPastDue)

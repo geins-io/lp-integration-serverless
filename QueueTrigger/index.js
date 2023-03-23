@@ -1,12 +1,17 @@
 const util = require("../global/util.js");
 module.exports = async function (context, item) {
+    let origin = 'queue-trigger';
+    if(item.origin){
+        origin += `/${item.origin}`;
+    }
     // get the queue message and process it
-    const action = new util.Action('queueTrigger', item.action, item.payload);
+    let action = new util.Action(origin, item.action, item.payload);
     // log the action and payload
     if(util.environment === "development") {
-        context.log('Action -> ', action.action);
+        context.log('Origin ->      ', action.origin);
+        context.log('Action ->      ', action.action);
         context.log('Action Family -> ', action.family);
-        context.log('Payload -> ', action.payload);
+        context.log('Payload ->     ', action.payload);
     }    
     util.logger.saveActionToLog(action);
     // process the action
@@ -22,9 +27,7 @@ module.exports = async function (context, item) {
             break;
         default:
             // log the error
-            context.log('Invalid action -> ', action);
-            util.logger.saveLog('Invalid action -> ', action);
+            context.log('Invalid action -> ', action);            
             break;
     }
-
 };

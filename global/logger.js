@@ -24,7 +24,7 @@ class Logger {
 
   async saveActionToLog(actionObj) {
     try {
-      const { origin, action, payload, family } = actionObj;
+      let { origin, action, payload, family } = actionObj;
       if(family) {
         action = `${family}-${action}`;
       }
@@ -36,11 +36,19 @@ class Logger {
 
   async saveLog(origin, action, payload, family) {
     try {
+      if(!family) {
+        if(action.includes("-")) {
+          const split = action.split("-");          
+          family = split[0];
+        } else {
+          family = '';
+        }
+      }
       const logEntity = {
-        partitionKey: action,
-        family: family,
+        partitionKey: action,       
         rowKey: new Date().toISOString(),
         origin: origin,
+        family: family,
         payload: JSON.stringify(payload),
         timestamp: new Date()
       };
