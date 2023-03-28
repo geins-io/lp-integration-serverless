@@ -1,4 +1,6 @@
 const util = require("../global/util.js");
+// My Parsers
+const { MyParser, FeedParser } = require('../global/parsers/');
 module.exports = async function (context, item) {
     let origin = 'queue-trigger';
     if(item.origin){
@@ -10,10 +12,9 @@ module.exports = async function (context, item) {
     util.logger.saveActionToLog(action);
     // process the action
     switch(action.familyAndAction()) {
-        case "family-action":
+        case "feed-generate":
             // add parser to the output and output to the action
-            const parser = new util.MyParser();
-            action.output.push(new util.Output(util.OutputType.API_PUSH, parser));            
+            action.output.push(new util.Output(util.OutputType.STORE_SAVE, new FeedParser()));            
             break;
         default:
             // log error

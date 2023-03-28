@@ -3,6 +3,8 @@ const OutputType = Object.freeze({
   HTTP_RESPONSE: 'httpResponse',
   HTTP_REQUEST: 'httpRequest',
   PUSH: 'push',
+  STORE_SAVE: 'storeSave',
+  STORE_GET: 'storeGet',
   // Add other types as needed
 });
 

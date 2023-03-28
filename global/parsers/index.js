@@ -1,2 +1,6 @@
 const MyParser = require("./myparser.js");
-module.exports =  MyParser
+const FeedParser = require("./myfeedparser.js");
+module.exports =  { 
+    MyParser, 
+    FeedParser 
+};
