@@ -4,6 +4,13 @@ class FeedParser {
     constructor() {
     }
 
+    async getFeed() {
+        // Get feed from blob storage
+        const feed = await util.dataStore.feedBlob.getData('myfeed.csv');
+        // Return feed
+        return feed;
+    }
+
     parse(output, action) {
         // parse the output type and process it
         switch(output.type) {
@@ -14,32 +21,34 @@ class FeedParser {
     }
 
     async saveFeed(actionObject) {
-        // push the action to the api
-        const payload = actionObject.payload;
-        let data = '';
-        switch(payload) {   
-            case "google-shopping":
-                data = await this.generateFeed();
-                break;
-        }
-        const blobName = await util.dataStore.feedBlob.sanitizeName(`${payload}-locale.csv`);
-        // set the data object
-        const datBlobObj = {
-            blobName: blobName,
-            partitionKey: payload,
-            property: actionObject.origin,
-            data: data,
-        };
-        // set the data table object
-        const dataTableObj = {
-            blobName: blobName,
-            partitionKey: payload,
-            property: actionObject.origin,
-        };
-        // save the data to the data store
         try {
+            // push the action to the api
+            const payload = actionObject.payload;
+            let data = '';
+            switch(payload) {   
+                case "google-shopping":
+                    data = await this.generateFeed();
+                    break;
+            }
+            const blobName = await util.dataStore.feedBlob.sanitizeName(`${payload}-locale.csv`);
+            // set the data object
+            const datBlobObj = {
+                blobName: blobName,
+                partitionKey: payload,
+                property: actionObject.origin,
+                data: data,
+            };
             // save the blob to the data store
-            await util.dataStore.feedBlob.saveData(datBlobObj);
+            const blobUrl = await util.dataStore.feedBlob.saveData(datBlobObj);
+
+            // set the data table object
+            const dataTableObj = {
+                blobName: blobName,
+                partitionKey: payload,
+                property: actionObject.origin,
+                blobUrl: blobUrl
+            };
+            
             // save the blob info to the data table store
             await util.dataStore.feedTable.saveData(dataTableObj);
         } catch (error) {

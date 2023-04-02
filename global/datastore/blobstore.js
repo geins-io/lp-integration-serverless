@@ -28,10 +28,11 @@ class BlobStore {
       if (typeof blobName !== 'string') {
         throw new Error("Invalid blobName: must be a string");
       }
-  
+      // Get blob client
       const blockBlobClient = this.containerClient.getBlockBlobClient(blobName);
+      // Check if blob exists
       const exists = await blockBlobClient.exists();
-  
+      // Create blob if not exists
       if (!exists) {
         await blockBlobClient.upload("", 0);
       }
@@ -51,9 +52,12 @@ class BlobStore {
       const serializedData = JSON.stringify(data);
       // Upload blob data
       await blockBlobClient.upload(serializedData, serializedData.length);
+      // Return url to blob
+      return blockBlobClient.url;
     } catch (error) {
       console.error("Error saving blob data:", error.message);
     }
+    return null;
   }
 
   async sanitizeName(name) {
