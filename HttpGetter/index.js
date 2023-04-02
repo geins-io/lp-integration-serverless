@@ -17,9 +17,11 @@ module.exports = async function (context, req) {
         return;
     }
     var retval = {};
+
     // **************************************
     // *********** LOGIC GOES HERE **********
     // **************************************
+    
     response = util.Response.success(retval);
     // return response
     context.res = response;

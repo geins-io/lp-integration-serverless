@@ -3,10 +3,10 @@ module.exports = async function (context, myTimer) {
     var timeStamp = new Date().toISOString();
     // sample object for log and queue
     const object = { action: 'family-action', payload: 'payload', origin: 'timer-trigger' };        
-    //log request
+    // Log request
     util.logger.saveLog('timer-trigger', object.action, object);
-    // put in queue
-    util.queue.enqueueMessage(object);
+    // Put in queue
+    // util.queue.enqueueMessage(object);
     if (myTimer.isPastDue)
     {
         if(util.environment === "development") {
