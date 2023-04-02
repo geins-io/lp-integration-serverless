@@ -22,29 +22,40 @@ class FeedParser {
                 data = await this.generateFeed();
                 break;
         }
+        const blobName = await util.dataStore.feedBlob.sanitizeName(`${payload}-locale.csv`);
         // set the data object
-        const dataObj = {
+        const datBlobObj = {
+            blobName: blobName,
             partitionKey: payload,
-            property1: actionObject.origin,
-            feed: data,
+            property: actionObject.origin,
+            data: data,
         };
-        
+        // set the data table object
+        const dataTableObj = {
+            blobName: blobName,
+            partitionKey: payload,
+            property: actionObject.origin,
+        };
         // save the data to the data store
-        util.dataStore.feedBlob.saveData(dataObj);
-        
-        console.log('*** SAVE TO DATA STORE  -> ', actionObject);
+        try {
+            // save the blob to the data store
+            await util.dataStore.feedBlob.saveData(datBlobObj);
+            // save the blob info to the data table store
+            await util.dataStore.feedTable.saveData(dataTableObj);
+        } catch (error) {
+            console.error('Error saving data to data store:', error.message);
+        }
     }
 
     async generateFeed() {
-        console.log('*** GENERATE *****');
+        // Get the products
         const products = await this.getProducts();
-        // Work with the products
-        console.log('*** PRODUCTS LENGTH *****', products.length);
         // Generate the feed
         const feed = new MyFeed(products);
-        return feed.generateFeed();
+        const data = await feed.generateFeed();
+        return data;
     }
-         
+
     async getProducts() {        
         try {
             const mgmtClient = new util.MgmtAPI();

@@ -1,7 +1,7 @@
 // Description: This file contains all the helper functions and instances that are used across the project
 const { Action, Output, OutputType, Response } = require('../global/enitites.js');
-const TableStore = require('../global/tableStore.js');
-const BlobStore = require('../global/blobstore.js');
+const TableStore = require('../global/datastore/tablestore.js');
+const BlobStore = require('../global/datastore/blobstore.js');
 const Logger = require('../global/logger.js');
 const Queue = require('../global/queue.js');
 const MgmtAPI = require('../global/parsers/api/mgmtapi.js');
@@ -19,7 +19,7 @@ const queue = new Queue(queueConnectionString, queueName);
 // Add data stores here 
 const dataStore = {
   feedTable: new TableStore(accountName, accountKey, 'feedTable'),
-  feedBlob: new BlobStore(accountName, accountKey, 'feedBlob'),
+  feedBlob: new BlobStore(accountName, accountKey, 'feed-blobs'),
 } 
 
 module.exports = {

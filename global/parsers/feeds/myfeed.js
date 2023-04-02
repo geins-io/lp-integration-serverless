@@ -67,7 +67,7 @@ class MyFeed {
       return feedObj;
     }
 
-    generateFeed() {
+    async generateFeed() {
       let feed = '';
       if(!this.feedProducts) {
           return feed;

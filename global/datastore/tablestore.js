@@ -32,7 +32,7 @@ class TableStore {
       };
       await this.tableClient.createEntity(entity);
     } catch (error) {
-      console.error("Error saving data:", error.message);
+      console.error("Error saving table data:", error.message);
     }
   }
 

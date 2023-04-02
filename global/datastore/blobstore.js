@@ -6,19 +6,60 @@ class BlobStore {
     const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
     const blobServiceClient = new BlobServiceClient(`https://${accountName}.blob.core.windows.net`, sharedKeyCredential);
     this.containerClient = blobServiceClient.getContainerClient(containerName);
+    // this.initContainer();
+    (async () => {
+      try {
+        // Create the container if it doesn't exist
+        const exists = await this.containerClient.exists();
+        if (!exists) {
+          await this.containerClient.create();
+          console.log(`Container "${this.containerName}" created successfully.`);
+        } else {
+          console.log(`Container "${this.containerName}" already exists.`);
+        }
+      } catch (error) {
+        console.error(`Error creating "${this.containerName}" container if not exists:`, error.message);
+      }
+    })();
+  }
+
+  async createBlobIfNotExists(blobName) {
+    try {
+      if (typeof blobName !== 'string') {
+        throw new Error("Invalid blobName: must be a string");
+      }
+  
+      const blockBlobClient = this.containerClient.getBlockBlobClient(blobName);
+      const exists = await blockBlobClient.exists();
+  
+      if (!exists) {
+        await blockBlobClient.upload("", 0);
+      }
+    } catch (error) {
+      console.error("Error creating blob if not exists:", error.message);
+    }
   }
 
   async saveData(dataObj) {
     try {
-      const { blobName, ...rest } = dataObj;
+      const { blobName, partitionKey, data, ...rest } = dataObj;
+      // Create blob if not exists
+      await this.createBlobIfNotExists(blobName);
+      // Get blob client
       const blockBlobClient = this.containerClient.getBlockBlobClient(blobName);
-      await blockBlobClient.upload(JSON.stringify(rest), JSON.stringify(rest).length);
+      // Get blob data
+      const serializedData = JSON.stringify(data);
+      // Upload blob data
+      await blockBlobClient.upload(serializedData, serializedData.length);
     } catch (error) {
-      console.error("Error saving data:", error.message);
+      console.error("Error saving blob data:", error.message);
     }
   }
 
-
+  async sanitizeName(name) {
+    // Replace invalid characters with an underscore
+    return name.replace(/[^a-zA-Z0-9-_~.]/g, '_').substring(0, 1024);
+  }
 
   async fetchData(filter) {
     try {

@@ -18,7 +18,7 @@ module.exports = async function (context, item) {
             break;
         default:
             // log error
-            context.log('Invalid action -> ', action);            
+            context.log('Invalid action:', action);            
             break;
     }
     // run action and catch any errors
@@ -26,7 +26,7 @@ module.exports = async function (context, item) {
         action.run();
     } catch (error) {
         // log the error
-        context.log('Error -> ', error);
+        context.log('Error in "run()":', error);
     }
     
 };
