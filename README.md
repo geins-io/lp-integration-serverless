@@ -3,7 +3,7 @@ This integration launchpad comes with full features set optimized to build again
 
 ## Pre-requisites
 - Node.js
-- Azure Account (Storage Account, Table Storage, Queue Storage) [Get a fee account here](https://azure.microsoft.com/en-us/free/)
+- Azure Account (Storage Account, Table Storage, Queue Storage) [Get a free account here](https://azure.microsoft.com/en-us/free/)
 - Geins Management API Account. [Get a free trial here](https://www.geins.io)
 
 
