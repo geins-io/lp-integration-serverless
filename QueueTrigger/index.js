@@ -1,6 +1,6 @@
 const util = require("../global/util.js");
 // My Parsers
-const { MyParser, FeedParser } = require('../global/parsers/');
+const { KlavyioParser } = require('../global/parsers/');
 module.exports = async function (context, item) {
     let origin = 'queue-trigger';
     if(item.origin){
@@ -9,12 +9,12 @@ module.exports = async function (context, item) {
     // get the queue message and process it
     let action = new util.Action(origin, item.action, item.payload);
     // log the action and payload
-    util.logger.saveActionToLog(action);
+    // util.logger.saveActionToLog(action);
     // process the action
     switch(action.familyAndAction()) {
-        case "feed-generate":
-            // add parser to the output and output to the action
-            action.output.push(new util.Output(util.OutputType.STORE_SAVE, new FeedParser()));            
+        case "user-sync":
+        case "users-sync":            
+            action.output.push(new util.Output(util.OutputType.API_PUSH, new KlavyioParser()));            
             break;
         default:
             // log error

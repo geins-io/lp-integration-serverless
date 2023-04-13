@@ -5,6 +5,7 @@ const BlobStore = require('../global/datastore/blobstore.js');
 const Logger = require('../global/logger.js');
 const Queue = require('../global/queue.js');
 const MgmtAPI = require('../global/parsers/api/mgmtapi.js');
+const KlavyioAPI = require('../global/parsers/klaviyo/wrapper.js');
 
 const environment = process.env['ENVIRONMENT'];
 const accountName =process.env['AZURE_ACCOUNT_NAME'];
@@ -18,8 +19,9 @@ const queue = new Queue(queueConnectionString, queueName);
 
 // Add data stores here 
 const dataStore = {
-  feedTable: new TableStore(accountName, accountKey, 'feedTable'),
-  feedBlob: new BlobStore(accountName, accountKey, 'feed-blobs'),
+  brokerTable: new TableStore(accountName, accountKey, 'klaviyoBrokerTable'),
+  syncTable: new TableStore(accountName, accountKey, 'klaviyoSyncTable'),
+  blob: new BlobStore(accountName, accountKey, 'klaviyo-blobs'),
 } 
 
 module.exports = {
@@ -30,7 +32,7 @@ module.exports = {
   Action,
   Output,
   OutputType,
-  MgmtAPI,
+  MgmtAPI,  
   dataStore,
-  // ... (export other helper functions or instances as needed)
+  KlavyioAPI,  
 };

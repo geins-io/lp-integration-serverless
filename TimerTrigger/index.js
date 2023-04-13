@@ -4,7 +4,7 @@ module.exports = async function (context, myTimer) {
     // sample object for log and queue
     const object = { action: 'family-action', payload: 'payload', origin: 'timer-trigger' };        
     // Log request
-    util.logger.saveLog('timer-trigger', object.action, object);
+    // util.logger.saveLog('timer-trigger', object.action, object);
     // Put in queue
     // util.queue.enqueueMessage(object);
     if (myTimer.isPastDue)

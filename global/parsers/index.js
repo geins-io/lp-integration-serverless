@@ -1,6 +1,4 @@
-const MyParser = require("./myparser.js");
-const FeedParser = require("./myfeedparser.js");
+const KlavyioParser = require("./klaviyoParser.js");
 module.exports =  { 
-    MyParser, 
-    FeedParser 
+    KlavyioParser 
 };

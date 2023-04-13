@@ -8,7 +8,12 @@ module.exports = async function (context, req) {
     const action = (req.query.action || req.body && req.body.action);
     // get action and payload from query string or body
     try {
-        const logs = await util.logger.fetchLogs({ origin: origin, action: action });
+        let logs = await util.logger.fetchLogs({ origin: origin, action: action });        
+        //sort logs by date
+        logs.sort((a, b) => {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+        // set success response
         response = util.Response.success(logs);
     } catch (error) {
         // return error response in devlopenment

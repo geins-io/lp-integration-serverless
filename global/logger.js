@@ -28,7 +28,8 @@ class Logger {
       if(family) {
         action = `${family}-${action}`;
       }
-      this.saveLog(origin, action, payload, family);
+      
+      this.saveLog(origin, action, JSON.stringify(payload), family);
     } catch (error) {
       console.error("Error saving log:", error.message);
     }
@@ -64,9 +65,9 @@ class Logger {
       const logs = [];
 
       let queryOptions = {};
-
+      let filterString = '';
       if (filter) {
-        let filterString = '';
+       
         if (filter.action) {
           filterString += `PartitionKey eq '${filter.action}'`;
         }
@@ -81,8 +82,10 @@ class Logger {
         }
         queryOptions = { filter: filterString };
       }
-
-      const entities = this.tableClient.listEntities(queryOptions);
+      console.log('******* queryOptions -> ', queryOptions)
+      const entities = this.tableClient.listEntities({
+        queryOptions: { filter: filterString }
+      });
       for await (const entity of entities) {
         logs.push(entity);
       }
