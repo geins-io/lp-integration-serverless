@@ -29,8 +29,7 @@ class TableStore {
         partitionKey: partitionKey,
         rowKey: rowKey || new Date().toISOString(),        
         ...rest,
-      };
-      console.log("Saving data to table:", entity)
+      };      
       await this.tableClient.createEntity(entity);
     } catch (error) {
       console.error("Error saving table data:", error.message);

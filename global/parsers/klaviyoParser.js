@@ -53,7 +53,6 @@ class KlavyioParser {
         // update latest date if incremantal
         if(incremental) {
             const latestEntity = await util.dataStore.syncTable.getLatestEntity('product-sync');
-            console.log('*** latestEntity -> ', latestEntity);
             if(latestEntity === undefined || latestEntity === null) {
                 latestDate = new Date('2000-01-01T00:00:00Z');
             } else {                
@@ -96,8 +95,7 @@ class KlavyioParser {
         // add products to queque
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
-            util.queue.enqueueMessage({ action: 'product-sync', payload: product, origin: actionObject.origin });
-            break;
+            util.queue.enqueueMessage({ action: 'product-sync', payload: product, origin: actionObject.origin });            
         }
 
         // add record of latest order to log table to be used for incremental sync
@@ -172,7 +170,6 @@ class KlavyioParser {
             // log error
             util.logger.saveLog(origin, action, actionPayload, 'Product not saved, , product id:' + product.ProductId);
             // stop execution
-            console.log('Product not saved STOPPING, , product id:' + product.ProductId)
             return;            
         }
 
@@ -315,54 +312,66 @@ class KlavyioParser {
         const action = actionObject.action;
 
         // Klaviyo Profile ID
-        let profileId = '';
+        let klaviyoProfileId = '';
 
         // get the user info
-        const payload = await this.userInfoGet(actionPayload.email|| actionPayload);
-        if(payload === undefined || payload === null || payload === {}){
+        const user = await this.userInfoGet(actionPayload.email|| actionPayload);
+        if(user === undefined || user === null || user === {}){
             // no user found do nothing
             return;
         }
+        const itemBrokerName = user.email;       
 
-        // get the user from the broker table   
-        const brokerRow = await util.dataStore.userBrokerTable.fetchData({ partitionKey: payload.email });
-        if(brokerRow.length > 0){
-            profileId = brokerRow[0].rowKey;
-        } else {
-            // try to get the user from Klaviyo
-            const response = await klavyioClient.getProfileFromEmail(payload.email);
-            if(response.statusCode === 200) {  
-                if(response.profileId !== undefined && response.profileId !== null && response.profileId !== ''){
-                    profileId = response.profileId;
-                    // add the profile id to the broker table
-                    util.dataStore.userBrokerTable.saveData({
-                        partitionKey:payload.email,
-                        rowKey: profileId,            
-                    });
-                } 
-            }
+        // get the product from the broker table  
+        const brokerRow = await util.dataStore.userBrokerTable.getLatestEntity(itemBrokerName);
+
+        // set klaivyo product id if broker row exists
+        if(brokerRow !== undefined && brokerRow !== null) {
+            klaviyoProfileId = brokerRow.rowKey;
         }
 
-        // create or update the profile in Klaviyo
-        let retval = {};        
+        // create user if not exists in broker table
+        let userSaved = false;
+        if(klaviyoProfileId === '') {
+            // push product to Klaviyo
+            const response = await klavyioClient.createProfile(user);
+            console.log('*** response -> ', response);
+            if(response.status === 'ok') {
+                // set the klaviyo product id from response
+                klaviyoProfileId = response.klaviyoId;     
+                userSaved = true;           
+            } else if (response.status === 'duplicate_profile') {
+                // user already exists in Klaviyo
+                // handle this case as you wish, in this case we just try to update the user
+                klaviyoProfileId = response.klaviyoId;            
+                util.logger.saveLog(origin, action, actionPayload, 'User already exists in Klaviyo');
+            }        
+        }
+
+        // // user was not saved at this point in Klaviyo, try update it
+        if(!userSaved && klaviyoProfileId !== '') {
+            console.log('*** user UPDATE -> ');
+            const response = await klavyioClient.updateProfile(user, klaviyoProfileId);
+            if(response.status === 'ok') {
+                userSaved = true;
+            }            
+        }
        
-        if(profileId === '') {
-            // create the profile
-            retval = await klavyioClient.createProfile(payload);
-            // add the profile id to the broker table
+        // save the klaviyo product id to the broker table if it was not saved before
+        if(klaviyoProfileId !== '' && (brokerRow === undefined || brokerRow === null)) {
             util.dataStore.userBrokerTable.saveData({
-                    partitionKey:payload.email,
-                    rowKey: retval.profileId,            
+                partitionKey: itemBrokerName,
+                rowKey: klaviyoProfileId,            
             });
-    
-        } else {
-            // update the profile
-            retval = await klavyioClient.updateProfile(profileId, payload);
         }
-        // if error log it
-        if(retval.statusCode >= 400){           
-           // log error
-           util.logger.saveLog('error-klavyio/'+origin, action, actionObject, family);           
+
+        // something went wrong, log error and stop execution
+        if(!userSaved) {
+            // log error
+            util.logger.saveLog(origin, action, actionPayload, 'User not saved');
+            // stop execution
+            console.log('User not saved stopping execution');
+            return;            
         }
     }
 

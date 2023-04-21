@@ -51,7 +51,7 @@ class KlavyioAPI {
     async createProfile(payload) {
         // docs: https://developers.klaviyo.com/en/reference/create_profile
         var retval = this.createResponseReturnValue();
-        retval.profileId = null;  
+        retval.klaviyoId = null;  
 
         // build the body fom the payload
         const body = this.buildProfileBody(payload);
@@ -69,7 +69,7 @@ class KlavyioAPI {
             throw new Error('No data returned');
         })
         .then(function(data) {
-            retval.profileId = data.data.id;
+            retval.klaviyoId = data.data.id;
             retval.data = data.data;
         })
         .catch(function(error) {
@@ -81,7 +81,7 @@ class KlavyioAPI {
                         if(error.status == 409) {     
                             retval.statusCode = error.status;
                             retval.status = error.code;                    
-                            retval.profileId = error.meta.duplicate_profile_id;
+                            retval.klaviyoId = error.meta.duplicate_profile_id;
                         }
                         else {
                             retval.statusCode = error.status;
@@ -96,7 +96,7 @@ class KlavyioAPI {
     }
 
     // update a profile
-    async updateProfile(id, payload) {
+    async updateProfile(payload, id) {
         // docs: https://developers.klaviyo.com/en/reference/update_profile
         var retval = this.createResponseReturnValue();
         retval.profileId = null;     
@@ -116,7 +116,7 @@ class KlavyioAPI {
             throw new Error('No data returned');
         })
         .then(function(data) {
-            retval.profileId = data.data.id;
+            retval.klaviyoId = data.data.id;
             retval.data = data;
         })
         .catch(function(error) {
@@ -128,7 +128,7 @@ class KlavyioAPI {
                         if(err.status == 409) {     
                             retval.statusCode = err.status;
                             retval.status = err.code;                    
-                            retval.profileId = err.meta.duplicate_profile_id;
+                            retval.klaviyoId = err.meta.duplicate_profile_id;
                         }
                     });                
                 }
@@ -151,8 +151,7 @@ class KlavyioAPI {
         body.data.attributes.external_id = this.buildExtrenalProductId(payload.ProductId);
         
         // build the options
-        var opts = {};
-
+        const context = this;
         await klaviyoSdk.Catalogs.createCatalogItem(body)
         .then(function(data) {            
             if(data.body){           
@@ -167,7 +166,7 @@ class KlavyioAPI {
             retval.data = data;
         })
         .catch(function(error) {
-            retval = context.handleCatalogResponseError(error, retval);      
+            retval = context.handleResponseError(error, retval);      
         });  
         return retval;
     }
@@ -182,9 +181,7 @@ class KlavyioAPI {
         // add the id to the body
         body.data.id = id;
         
-        // build the options
-        var opts = {};
-
+        const context = this;    
         await klaviyoSdk.Catalogs.updateCatalogItem(body, id)
         .then(function(data) {            
             if(data.body){           
@@ -199,7 +196,7 @@ class KlavyioAPI {
             retval.data = data;
         })
         .catch(function(error) {
-            retval = context.handleCatalogResponseError(error, retval);      
+            retval = context.handleResponseError(error, retval);      
         });  
         return retval;
     }
@@ -216,8 +213,7 @@ class KlavyioAPI {
         body.data.attributes.catalog_type = '$default';
         body.data.attributes.external_id = this.buildExtrenalProductItemId(product.ProductId, item.ItemId);
 
-        const context = this;
-        var opts = {};        
+        const context = this;    
         await klaviyoSdk.Catalogs.createCatalogVariant(body, opts)
         .then(function(data) {            
             if(data.body){           
@@ -232,7 +228,7 @@ class KlavyioAPI {
             retval.data = data;
         })
         .catch(function(error) {
-            retval = context.handleCatalogResponseError(error, retval);      
+            retval = context.handleResponseError(error, retval);      
         });        
         return retval;  
     }
@@ -265,7 +261,7 @@ class KlavyioAPI {
             retval.data = data;
         })
         .catch(function(error) {
-            retval = context.handleCatalogResponseError(error, retval);      
+            retval = context.handleResponseError(error, retval);      
         });        
         return retval;  
     }
