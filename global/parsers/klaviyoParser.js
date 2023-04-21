@@ -32,11 +32,85 @@ class KlavyioParser {
             case 'products':
                 this.productsSync(actionObject);
                 break
+            case 'category':
+                this.categorySync(actionObject);
+                break
             default:
                 // log error
                 util.logger.saveLog('error-no-action/'+actionObject.origin, actionObject.action, actionObject.payload, 'Invalid action');
                 break;                
         }
+    }
+
+    async categorySync(actionObject) {
+        const klavyioClient = new util.KlavyioAPI();
+        const actionPayload = actionObject.payload; 
+        const family = actionObject.family;
+        const origin = 'category-sync/'+ actionObject.origin;  
+        const action = actionObject.action;
+       
+        // get category info
+        const categories = await this.categoryInfoGet(actionPayload);
+        if(categories === undefined || categories === null || categories.length === 0) {
+            return;
+        }
+        const category = categories[0];
+
+         // define the klaviyo id
+         let klaviyoId = '';
+
+        // set broker name
+        const brokerName = util.dataStore.categoryBrokerName(category.CategoryId);
+
+        // get the product from the broker table  
+        const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(brokerName);
+
+        // set klaivyo category id if broker row exists
+        if(brokerRow !== undefined && brokerRow !== null) {
+            klaviyoId = brokerRow.rowKey;
+        }
+
+        // create item if not exists in broker table
+        let categorySaved = false;
+        if(klaviyoId === '') {
+            // push product to Klaviyo
+            const response = await klavyioClient.createCatalogCategory(category);
+            if(response.status === 'ok') {
+                // set the klaviyo product id from response
+                klaviyoId = response.klaviyoId;     
+                categorySaved = true;           
+            } else if (response.status === 'duplicate_category') {
+                // category already exists in Klaviyo
+                // handle this case as you wish, in this case we just update the category in Klaviyo
+                klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(category.CategoryId);
+                util.logger.saveLog(origin, action, actionPayload, 'Category already exists in Klaviyo');
+            }
+        }
+
+        // category was not saved at this point in Klaviyo, try update it
+        if(!categorySaved && klaviyoId !== '') {
+            const response = await klavyioClient.updateCatalogCategory(category, klaviyoId);
+            if(response.status === 'ok' || response.statusCode === 204) {
+                categorySaved = true;
+            }            
+        }
+
+        // save categroy to broker table it was not saved before
+        if(klaviyoId !== '' && (brokerRow === undefined || brokerRow === null)) {
+            util.dataStore.productBrokerTable.saveData({
+                partitionKey: brokerName,
+                rowKey: klaviyoId,            
+            });
+        }
+
+        // something went wrong, log error and stop execution
+        if(!categorySaved) {
+            // log error
+            util.logger.saveLog(origin, action, actionPayload, 'Category not saved, , category id:' + category.ProductId);
+            // stop execution
+            return;            
+        }
+
     }
 
     async productsSync(actionObject) {        
@@ -231,6 +305,25 @@ class KlavyioParser {
         }
     }
 
+    // get category info from geins
+    async categoryInfoGet(categoryId) {
+        // use the geins mgmt api to get the user info
+        const mgmtClient = new util.MgmtAPI();
+
+        // get user info from the api
+        let response = {};
+        try {
+           response = await mgmtClient.getCategory(categoryId);
+        } catch (error) {
+            return;
+        }
+        if(response === undefined || response === null) {
+           return;
+        }
+        // return category
+        return response;
+   }
+
     async productInfoGet(productId) {
          // use the geins mgmt api to get the user info
          const mgmtClient = new util.MgmtAPI();
@@ -379,17 +472,14 @@ class KlavyioParser {
         // use the geins mgmt api to get the user info
         const mgmtClient = new util.MgmtAPI();
         // get user info from the api
-        let userResponse = {};
+        let response = {};
         try {
-            userResponse = await mgmtClient.getUserProfile(email);
-            //console.log('*** userResponse -> ', userResponse);
-            //const user = userResponse.Resource; 
-            //console.log('*** userResponse -> ', user);
+            response = await mgmtClient.getUserProfile(email);
         } catch (error) {
             return;
         }
         // set user info from user response
-        const user = userResponse.Resource;
+        const user = response.Resource;
 
         // set the user id from user
         const userId = user?.UserId || 0;

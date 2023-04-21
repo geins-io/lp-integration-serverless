@@ -15,7 +15,8 @@ module.exports = async function (context, item) {
         case "user-sync":
         case "users-sync": 
         case "product-sync":
-        case "products-sync":           
+        case "products-sync":
+        case "category-sync":           
             action.output.push(new util.Output(util.OutputType.API_PUSH, new KlavyioParser()));            
             break;
         default:

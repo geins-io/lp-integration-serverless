@@ -30,7 +30,10 @@ const dataStore = {
   },
   productItemBrokerName(productId, itemId) {
     return `product-${productId}:::item-${itemId}`;
-  }
+  },
+  categoryBrokerName(categoryId) {
+    return `category-${categoryId}`;
+  },
 } 
 
 module.exports = {

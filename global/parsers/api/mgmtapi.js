@@ -123,7 +123,7 @@ class MgmtAPI {
             'include': 'names,items,prices,categories,parameters,variants,markets,images,feeds,urls,shorttexts'
         };
 
-        //return the orders
+        //return the products
         return await new Promise((resolve, reject) => {
             productApi.queryProducts(query, opts, (error, data, response) => {
                 if (error) {
@@ -134,6 +134,26 @@ class MgmtAPI {
             });
         });
     }
+
+    async getCategory(id) {
+        let categoryApi = new this.api.CategoryApi();
+
+        let query = new this.api.CategoryModelsCategoryQuery();
+        query.CategoryIds = [];
+        query.CategoryIds.push(id);
+
+        //return the categorys
+        return await new Promise((resolve, reject) => {
+            categoryApi.queryCategories(query, (error, data, response) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+    }
+
 
 }
 module.exports = MgmtAPI;
