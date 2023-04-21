@@ -74,7 +74,6 @@ class TableStore {
       const entities = this.tableClient.listEntities({
         queryOptions: { filter: filterString }
       });
-     
       for await (const entity of entities) {
         data.push(entity);
       }

@@ -8,5 +8,5 @@ module.exports = async function (context, myTimer) {
     if(latestEntity) {
         await util.dataStore.syncTable.saveData(latestEntity);
     }
-    console.log('^^^^^^^^^^^^^^ Clean up complete', 'user-sync', latestEntity);
+    console.log('(^_^) Clean up complete');
 };

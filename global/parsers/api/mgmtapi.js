@@ -59,6 +59,7 @@ class MgmtAPI {
             });
         });
     }
+
     async getOrders(fromDate) {
         let orderApi = new this.api.OrderApi();
         
@@ -73,7 +74,7 @@ class MgmtAPI {
         //return the orders
         return await new Promise((resolve, reject) => {
             orderApi.queryOrders(query, (error, data, response) => {
-                if (error) {
+                if (error) {                    
                     reject(error);
                 } else {
                     resolve(data);
@@ -82,5 +83,57 @@ class MgmtAPI {
         });
 
     }
+
+    async getProductsPaged(fromDate, page) {
+        let productApi = new this.api.ProductApi();
+        
+        // create query
+        let query = new this.api.ProductModelsProductQuery();
+        query.OnlySellable = true;        
+        if(fromDate){
+            query.updatedAfter = fromDate;
+        }
+
+        // create options
+        let opts = {};
+
+        //set page if not set
+        if(!page){
+            page = 1;
+        }
+        //return the orders
+        return await new Promise((resolve, reject) => {
+            productApi.queryProductsPaged(page, query, opts, (error, data, response) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+    }
+
+    async getProduct(id) {
+        let productApi = new this.api.ProductApi();
+
+        let query = new this.api.ProductModelsProductQuery();
+        query.ProductIds = [];
+        query.ProductIds.push(id);
+        let opts = {
+            'include': 'names,items,prices,categories,parameters,variants,markets,images,feeds,urls,shorttexts'
+        };
+
+        //return the orders
+        return await new Promise((resolve, reject) => {
+            productApi.queryProducts(query, opts, (error, data, response) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+    }
+
 }
 module.exports = MgmtAPI;

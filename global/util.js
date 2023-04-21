@@ -19,9 +19,18 @@ const queue = new Queue(queueConnectionString, queueName);
 
 // Add data stores here 
 const dataStore = {
-  brokerTable: new TableStore(accountName, accountKey, 'klaviyoBrokerTable'),
+  userBrokerTable: new TableStore(accountName, accountKey, 'klaviyoUserBrokerTable'),
+  productBrokerTable: new TableStore(accountName, accountKey, 'klaviyoProductBrokerTable'),
   syncTable: new TableStore(accountName, accountKey, 'klaviyoSyncTable'),
   blob: new BlobStore(accountName, accountKey, 'klaviyo-blobs'),
+  
+  // borker names
+  productBrokerName(productId) {
+    return `product-${productId}`;
+  },
+  productItemBrokerName(productId, itemId) {
+    return `product-${productId}:::item-${itemId}`;
+  }
 } 
 
 module.exports = {

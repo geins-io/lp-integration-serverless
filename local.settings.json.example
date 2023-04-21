@@ -1,0 +1,22 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "ENVIRONMENT" : "development",    
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    
+    "AZURE_ACCOUNT_NAME": "my-account-name",
+    "AZURE_ACCOUNT_KEY": "my-key",
+    "AZURE_TABLE_NAME": "log",
+    "AZURE_QUEUE_NAME": "queue-items",
+   
+    "GEINS_MGMT_API_KEY": "my-key",
+    "GEINS_MGMT_API_USERMAME": "my-username",
+    "GEINS_MGMT_API_PASSWORD": "my-pwd", 
+
+    "KLAVIYO_API_KEY": "my-key"
+  },
+  "Host": {
+    "CORS": "*"
+  }
+}

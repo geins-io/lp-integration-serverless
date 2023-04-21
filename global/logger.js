@@ -82,7 +82,6 @@ class Logger {
         }
         queryOptions = { filter: filterString };
       }
-      console.log('******* queryOptions -> ', queryOptions)
       const entities = this.tableClient.listEntities({
         queryOptions: { filter: filterString }
       });

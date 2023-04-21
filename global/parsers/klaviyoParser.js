@@ -26,11 +26,230 @@ class KlavyioParser {
             case 'users':
                 this.usersSync(actionObject);
                 break;
+            case 'product':
+                this.productSync(actionObject);
+                break;
+            case 'products':
+                this.productsSync(actionObject);
+                break
             default:
                 // log error
                 util.logger.saveLog('error-no-action/'+actionObject.origin, actionObject.action, actionObject.payload, 'Invalid action');
                 break;                
         }
+    }
+
+    async productsSync(actionObject) {        
+        const mgmtClient = new util.MgmtAPI();
+        const actionPayload = actionObject.payload; 
+        const family = actionObject.family;
+        const origin = 'products-sync/'+ actionObject.origin;  
+        const action = actionObject.action;
+        const incremental = actionObject.payload === 'incremental';        
+
+        // set latest date to 2000-01-01
+        let latestDate = new Date('2000-01-01T00:00:00Z');
+
+        // update latest date if incremantal
+        if(incremental) {
+            const latestEntity = await util.dataStore.syncTable.getLatestEntity('product-sync');
+            console.log('*** latestEntity -> ', latestEntity);
+            if(latestEntity === undefined || latestEntity === null) {
+                latestDate = new Date('2000-01-01T00:00:00Z');
+            } else {                
+                latestDate = new Date(latestEntity.latestDate);               
+            }
+ 
+        }
+        // convert latestDate to ISO string
+        const latestDateStr = latestDate.toISOString();
+
+        let page = 1;
+        let pageCount = 1;
+        let hasMoreRows = true;
+        let products = [];
+        // loop response until HasMoreRows is false        
+        while (hasMoreRows) {
+            const response = await mgmtClient.getProductsPaged(latestDateStr, page);
+            // Get the page data
+            const pageData = response.PageResult;
+            // Set the page count
+            pageCount = pageData.PageCount;
+            // Get the products
+            const productData = response.Resource;
+            // Loop over the products and add to products array
+            for (let i = 0; i < productData.length; i++) {
+                const product = productData[i];
+                products.push(product);                
+            }
+
+            // Set the has more rows
+            hasMoreRows = pageData.HasMoreRows;
+
+            // Set the next page number if there are more rows
+            if(hasMoreRows) {
+                page = pageData.PageNumber + 1;
+            }
+
+        }
+
+        // add products to queque
+        for (let i = 0; i < products.length; i++) {
+            const product = products[i];
+            util.queue.enqueueMessage({ action: 'product-sync', payload: product, origin: actionObject.origin });
+            break;
+        }
+
+        // add record of latest order to log table to be used for incremental sync
+        const syncDate = new Date();               
+        util.dataStore.syncTable.saveData({ partitionKey:  'product-sync', latestDate: syncDate, syncedEntities: products.length });
+    }
+
+    async productSync(actionObject) {
+        const klavyioClient = new util.KlavyioAPI();
+        const actionPayload = actionObject.payload; 
+        const family = actionObject.family;
+        const origin = 'product-sync/'+ actionObject.origin;  
+        const action = actionObject.action;
+
+        // get product info
+        let products = await this.productInfoGet(actionPayload.ProductId || actionPayload);        
+        if(products === undefined || products === null || products.length === 0) {
+            return;
+        }
+        const product = products[0];
+        
+        // define the klaviyo product id
+        let klaviyoProductId = '';
+        
+        // set broker name
+        const productBorkerName = util.dataStore.productBrokerName(product.ProductId);
+        
+        // get the product from the broker table  
+        const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(productBorkerName);
+        
+        // set klaivyo product id if broker row exists
+        if(brokerRow !== undefined && brokerRow !== null) {
+            klaviyoProductId = brokerRow.rowKey;
+        }
+
+        // create item if not exists in broker table
+        let productSaved = false;
+        if(klaviyoProductId === '') {
+            // push product to Klaviyo
+            const response = await klavyioClient.createCatalogItem(product);
+            if(response.status === 'ok') {
+                // set the klaviyo product id from response
+                klaviyoProductId = response.klaviyoId;     
+                productSaved = true;           
+            } else if (response.status === 'conflict') {
+                // product already exists in Klaviyo
+                // handle this case as you wish, in this case we just update the product
+                klaviyoProductId = klavyioClient.getKlaviyoCatalogItemId(product.ProductId);
+                util.logger.saveLog(origin, action, actionPayload, 'Product already exists in Klaviyo');
+            }            
+        
+        }
+
+        // product was not saved at this point in Klaviyo, try update it
+        if(!productSaved && klaviyoProductId !== '') {
+            const response = await klavyioClient.updateCatalogItem(product, klaviyoProductId);
+            if(response.status === 'ok') {
+                productSaved = true;
+            }            
+        }
+
+        // save product to broker table it was not saved before
+        if(klaviyoProductId !== '' && (brokerRow === undefined || brokerRow === null)) {
+            util.dataStore.productBrokerTable.saveData({
+                partitionKey: productBorkerName,
+                rowKey: klaviyoProductId,            
+            });
+        }
+
+        // something went wrong, log error and stop execution
+        if(!productSaved) {
+            // log error
+            util.logger.saveLog(origin, action, actionPayload, 'Product not saved, , product id:' + product.ProductId);
+            // stop execution
+            console.log('Product not saved STOPPING, , product id:' + product.ProductId)
+            return;            
+        }
+
+        // add klaviyo product id to product object
+        product.klaviyoProductId = klaviyoProductId;
+
+        // push product variants to Klaviyo if any
+        for(const item of product.Items) {
+            let klaviyoProductItemId = '';            
+            // set broker name
+            const itemBrokerName = util.dataStore.productItemBrokerName(product.ProductId, item.ItemId);
+            //get the item from the broker table
+            const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(itemBrokerName);
+            // set klaivyo product id if broker row exists
+            if(brokerRow !== undefined && brokerRow !== null) {
+                klaviyoProductItemId = brokerRow.rowKey;
+            }        
+
+            // push product variant to Klaviyo
+            let itemSaved = false;
+            if(klaviyoProductItemId === '') {
+                // push product variant to Klaviyo
+                const response = await klavyioClient.createCatalogVariant(item, product);        
+                if(response.status === 'ok') {
+                    // set the klaviyo product item id from response
+                    klaviyoProductItemId = response.klaviyoId;     
+                    itemSaved = true;           
+                } else if (response.status === 'conflict') {
+                    // product already exists in Klaviyo
+                    // handle this case as you wish, in this case we update the product
+                    klaviyoProductItemId = klavyioClient.getKlaviyoCatalogItemId(product.ProductId);
+                    util.logger.saveLog(origin, action, actionPayload, 'Product Item already exists in Klaviyo item, product id: ' + product.ProductId + ' item id: ' + item.ItemId + ' klaviyo id: ' + klaviyoProductItemId);
+                }               
+            }
+
+            // item not created, try update it
+            if(!productSaved && klaviyoProductId !== '') {
+                // update the product in Klaviyo
+                const response = await klavyioClient.updateCatalogVariant(item, product, klaviyoProductItemId);
+                if(response.status === 'ok') {
+                    productSaved = true;
+                }            
+            }
+
+             // save the klaviyo product id to the broker table if it was not saved before
+            if(klaviyoProductItemId !== '' && (brokerRow === undefined || brokerRow === null)) {
+                util.dataStore.productBrokerTable.saveData({
+                    partitionKey: itemBrokerName,
+                    rowKey: klaviyoProductItemId,            
+                });
+            } 
+
+            // something is wrong, log and try next item
+            if(!itemSaved) {
+                // log error
+                util.logger.saveLog(origin, action, actionPayload, 'Product item not saved, product id: ' + product.ProductId + ' item id: ' + item.ItemId);
+            }
+
+        }
+    }
+
+    async productInfoGet(productId) {
+         // use the geins mgmt api to get the user info
+         const mgmtClient = new util.MgmtAPI();
+
+         // get user info from the api
+         let response = {};
+         try {
+            response = await mgmtClient.getProduct(productId);
+         } catch (error) {
+             return;
+         }
+         if(response === undefined || response === null) {
+            return;
+         }
+         // return product
+         return response.Resource;
     }
 
     async usersSync(actionObject,) {
@@ -106,7 +325,7 @@ class KlavyioParser {
         }
 
         // get the user from the broker table   
-        const brokerRow = await util.dataStore.brokerTable.fetchData({ partitionKey: payload.email });
+        const brokerRow = await util.dataStore.userBrokerTable.fetchData({ partitionKey: payload.email });
         if(brokerRow.length > 0){
             profileId = brokerRow[0].rowKey;
         } else {
@@ -116,7 +335,7 @@ class KlavyioParser {
                 if(response.profileId !== undefined && response.profileId !== null && response.profileId !== ''){
                     profileId = response.profileId;
                     // add the profile id to the broker table
-                    util.dataStore.brokerTable.saveData({
+                    util.dataStore.userBrokerTable.saveData({
                         partitionKey:payload.email,
                         rowKey: profileId,            
                     });
@@ -131,7 +350,7 @@ class KlavyioParser {
             // create the profile
             retval = await klavyioClient.createProfile(payload);
             // add the profile id to the broker table
-            util.dataStore.brokerTable.saveData({
+            util.dataStore.userBrokerTable.saveData({
                     partitionKey:payload.email,
                     rowKey: retval.profileId,            
             });
