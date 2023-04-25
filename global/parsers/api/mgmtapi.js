@@ -84,7 +84,7 @@ class MgmtAPI {
 
     }
 
-    async getProductsPaged(fromDate, page) {
+    async getProductsPaged(fromDate, page, batchId) {
         let productApi = new this.api.ProductApi();
         
         // create query
@@ -93,14 +93,20 @@ class MgmtAPI {
         if(fromDate){
             query.updatedAfter = fromDate;
         }
+        if(batchId){
+            query.BatchId = batchId;
+        }
 
         // create options
         let opts = {};
 
         //set page if not set
         if(!page){
-            page = 1;
+            page = 1;        
         }
+
+        console.log('--- queryProductsPaged page: ' + page);
+
         //return the orders
         return await new Promise((resolve, reject) => {
             productApi.queryProductsPaged(page, query, opts, (error, data, response) => {
@@ -114,7 +120,7 @@ class MgmtAPI {
     }
 
     async getProduct(id) {
-        let productApi = new this.api.ProductApi();
+        let api = new this.api.ProductApi();
 
         let query = new this.api.ProductModelsProductQuery();
         query.ProductIds = [];
@@ -125,7 +131,7 @@ class MgmtAPI {
 
         //return the products
         return await new Promise((resolve, reject) => {
-            productApi.queryProducts(query, opts, (error, data, response) => {
+            api.queryProducts(query, opts, (error, data, response) => {
                 if (error) {
                     reject(error);
                 } else {
@@ -136,7 +142,7 @@ class MgmtAPI {
     }
 
     async getCategory(id) {
-        let categoryApi = new this.api.CategoryApi();
+        let api = new this.api.CategoryApi();
 
         let query = new this.api.CategoryModelsCategoryQuery();
         query.CategoryIds = [];
@@ -144,11 +150,45 @@ class MgmtAPI {
 
         //return the categorys
         return await new Promise((resolve, reject) => {
-            categoryApi.queryCategories(query, (error, data, response) => {
+            api.queryCategories(query, (error, data, response) => {
                 if (error) {
                     reject(error);
                 } else {
                     resolve(data);
+                }
+            });
+        });
+    }
+
+    async getBrand(id) {
+        let api = new this.api.BrandApi();
+
+        let query = new this.api.BrandModelsBrandQuery();
+        query.BrandIds = [];
+        query.BrandIds.push(id);
+
+        //return the brands
+        return await new Promise((resolve, reject) => {
+            api.queryBrands(query, (error, data, response) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+    }
+
+    async getSupplier(id) {
+        let api = new this.api.SupplierApi();
+
+        //return the supplier
+        return await new Promise((resolve, reject) => {
+            api.getSupplierById(id, (error, data, response) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(data.Resource);
                 }
             });
         });

@@ -6,12 +6,17 @@ class KlavyioAPI {
         // KlavyioAPI API Setup
         this.api = klaviyoSdk;
         this.config = {
+            integration_type: '$custom',
+            catalog_type: '$default',
             languageCode: 'sv',
             currencyCode: 'SEK',
             vatIncluded: true,
-            marketId: 1,
-            integration_type: '$custom',
-            catalog_type: '$default',          
+            marketId: 1,  
+            catalogCategorySync: {
+                brands: true,
+                categories: true,
+                suppliers: true,
+            }          
         }
         klaviyoSdk.ConfigWrapper(process.env['KLAVIYO_API_KEY']);
     }
@@ -147,10 +152,13 @@ class KlavyioAPI {
         // build the body fom the payload
         let body = this.buildCatalogItemBody(payload);
 
+        // console.log('------ body ',body);
+        // console.log('------ body ',body.data.relationships);
+
         // set new item values
         body.data.attributes.integration_type = '$custom';
         body.data.attributes.catalog_type = '$default';
-        body.data.attributes.external_id = this.buildExtrenalProductId(payload.ProductId);
+        body.data.attributes.external_id = this.buildExtrenalProductId(payload.ProductId); 
         
         // build the options
         const context = this;
@@ -182,7 +190,7 @@ class KlavyioAPI {
         let body = this.buildCatalogItemBody(payload);
         // add the id to the body
         body.data.id = id;
-        
+       
         const context = this;    
         await klaviyoSdk.Catalogs.updateCatalogItem(body, id)
         .then(function(data) {            
@@ -216,7 +224,7 @@ class KlavyioAPI {
         body.data.attributes.external_id = this.buildExtrenalProductItemId(product.ProductId, item.ItemId);
 
         const context = this;    
-        await klaviyoSdk.Catalogs.createCatalogVariant(body, opts)
+        await klaviyoSdk.Catalogs.createCatalogVariant(body)
         .then(function(data) {            
             if(data.body){           
                 retval.statusCode = data.status;
@@ -246,7 +254,6 @@ class KlavyioAPI {
         // remove relationships
         body.data.relationships = null;
        
-        console.log('updateCatalogVariant body: ', body);
         const context = this;
 
         await klaviyoSdk.Catalogs.updateCatalogVariant(body, id)
@@ -279,8 +286,8 @@ class KlavyioAPI {
         // set new item values
         body.data.attributes.integration_type = this.config.integration_type;
         body.data.attributes.catalog_type = this.config.catalog_type;
-        body.data.attributes.external_id = payload.CategoryId;
-               
+        body.data.attributes.external_id = payload.externalId;
+
         // build the options
         const context = this;
         await klaviyoSdk.Catalogs.createCatalogCategory(body)
@@ -312,7 +319,7 @@ class KlavyioAPI {
         
         // add id to body
         body.data.id = id;
-            
+
         // build the options
         const context = this;
         await klaviyoSdk.Catalogs.updateCatalogCategory(body, id)
@@ -393,7 +400,7 @@ class KlavyioAPI {
         return body;
     }
 
-    // build the catalog item body
+    // build the catalog item body (product in geins)
     buildCatalogItemBody(payload) {
         // configured language  
         const languageCode = this.config.languageCode;
@@ -406,6 +413,7 @@ class KlavyioAPI {
         var body = {
                 data: {
                     type: 'catalog-item',
+                    
                     attributes: {                        
                         title: productData.name,
                         price: productData.price,
@@ -418,8 +426,19 @@ class KlavyioAPI {
                         },
                         published: true
                     }
+                    
                 }
-        };         
+        };
+        // add relationships if any
+        if(productData.relationsData.length > 0) {
+            body.data.relationships = {
+                categories: {
+                    data: [
+                        ... productData.relationsData
+                    ]
+                }         
+            };
+        }
         return body;
     }
 
@@ -431,9 +450,6 @@ class KlavyioAPI {
         const currencyCode = this.config.currencyCode;  
         // get product data
         const productData = this.buildProductData(product, languageCode, currencyCode);
-        
-        // DEBUG
-        // console.log('***** productData', productData);
 
         // build data for variant
         const variant = this.buildProductItemData(item, languageCode, currencyCode);
@@ -473,22 +489,14 @@ class KlavyioAPI {
         return body;
     }
 
-
     // build the catalog category body
     buildCatalogCategoryBody(payload) {
-        // configured language  
-        const languageCode = this.config.languageCode;
-        // configured currency
-        const currencyCode = this.config.currencyCode;  
-        // get product data
-        const categoryData = this.buildCategoryData(payload, languageCode, currencyCode); 
-
         // build the body fom the payload
         var body = {
                 data: {
                     type: 'catalog-category',
                     attributes: {                                              
-                        name: categoryData.name,
+                        name: payload.name,
                     }
                 }
         };         
@@ -497,6 +505,11 @@ class KlavyioAPI {
 
     // build product data for klaviyo from an Geins Product
     buildCategoryData(data, languageCode) {
+        // set to default language if not found
+        if(!languageCode) {
+            languageCode =  this.config.languageCode;
+        }
+
         // declare category data
         let categoryData = {};
 
@@ -504,7 +517,7 @@ class KlavyioAPI {
         categoryData.id = data.CategoryId;
 
         // set external id
-        categoryData.externalId = data.CategoryId;
+        categoryData.externalId = this.buildExtrenalCatalogItemId(data.CategoryId, 'category');
 
         // set parent id
         categoryData.parentId = data.ParentCategoryId;
@@ -513,7 +526,7 @@ class KlavyioAPI {
         categoryData.name = data.Names.find(category => category.LanguageCode === languageCode).Content;
 
         // set klaviyo id
-        categoryData.klaviyoId = this.getKlaviyoCatalogCategoryId(data.CategoryId);
+        categoryData.klaviyoId = this.getKlaviyoCatalogCategoryId(data.CategoryId, 'category');
 
         // get the name of in configured language
         categoryData.name = data.Names.find(category => category.LanguageCode === languageCode).Content;
@@ -523,6 +536,63 @@ class KlavyioAPI {
         categoryData.description = description ? this.cleanString(description.Content) : '';        
 
         return categoryData;
+    }
+
+    // build product data for klaviyo from an Geins Product
+    buildBrandData(data, languageCode) {
+        // set to default language if not found
+        if(!languageCode) {
+            languageCode =  this.config.languageCode;
+        }
+        
+        // declare data
+        let brandData = {};  
+
+        // set id
+        brandData.id = data.BrandId;
+
+        // set external id
+        brandData.externalId = this.buildExtrenalCatalogItemId(data.BrandId, 'brand');
+
+        // get the name of in configured language
+        brandData.name = data.Name;
+
+        // set klaviyo id
+        brandData.klaviyoId = this.getKlaviyoCatalogCategoryId(data.BrandId, 'brand');
+
+        
+        
+        // get discription in configured language
+        if(data.Descriptions) {
+            const description = data.Descriptions.find(text => text.LanguageCode === languageCode);
+            brandData.description = description ? this.cleanString(description.Content) : '';        
+        }
+        return brandData;
+    }
+
+    // build product data for klaviyo from an Geins Product
+    buildSupplierData(data, languageCode) {
+        // set to default language if not found
+        if(!languageCode) {
+            languageCode =  this.config.languageCode;
+        }
+  
+        // declare data
+        let supplierData = {};  
+
+        // set id
+        supplierData.id = data.SupplierId;
+
+        // set external id
+        supplierData.externalId = this.buildExtrenalCatalogItemId(data.SupplierId, 'supplier');
+
+        // get the name of in configured language
+        supplierData.name = data.Name;
+
+        // set klaviyo id
+        supplierData.klaviyoId = this.getKlaviyoCatalogCategoryId(data.SupplierId, 'supplier');
+        
+        return supplierData;
     }
 
     // build product data for klaviyo from an Geins Product
@@ -542,12 +612,21 @@ class KlavyioAPI {
         // get image url from data
         productData.imageUrl = data.PrimaryImage;
 
+        // get brand name and id    
+        productData.brandId = data.BrandId;
+        productData.brand = data.BrandName;
+
+        //get supplier name and id
+        productData.supplierId = data.SupplierId;
+        productData.supplier = data.SupplierName;
+
+
         // get prices with configured currency
         const prices = data.Prices.filter(price => price.Currency === currencyCode);
         // loop through prices and get the lowest price
         const price = 0;
         productData.currency = '';
-        prices.forEach(function(priceItem) {
+        prices.forEach((priceItem) => {
             if(priceItem.PriceIncVat < price || price == 0) {
                 productData.price = priceItem.PriceIncVat;
                 productData.currency = priceItem.Currency;
@@ -559,7 +638,7 @@ class KlavyioAPI {
 
         // get loop items and all count of stock to inventory
         productData.inventory = 0;
-        data.Items.forEach(function(item) {
+        data.Items.forEach((item) => {
             productData.inventory += item.Stock;
         });
 
@@ -581,8 +660,8 @@ class KlavyioAPI {
         productData.properties = {};
 
         // get all the properties from data
-        const propertiesObj = data.ParameterValues;// ? data.Properties.find(prop => prop.LanguageCode === this.config.languageCode) : null;
-        propertiesObj.forEach(function(item) {
+        const propertiesObj = data.ParameterValues;
+        propertiesObj.forEach((item) => {
             const property = item.ParameterName;
             const value = item.Description
             let valueLocalized = null;
@@ -593,13 +672,20 @@ class KlavyioAPI {
             productData.properties[property] = valueLocalized || value;
         });
 
+        // get all relations
+        productData.relationsData = [];
+        data.relations.forEach((relation) => {
+            productData.relationsData.push({                
+                type: 'catalog-category',
+                id: relation.klaviyoId
+            });
+        });
         return productData;
     }
 
     // build product data for klaviyo from an Geins Product Item
     buildProductItemData(data, languageCode, currencyCode) {
         // DEBUG
-        // console.log('*****  ---- buildProductItemData', data.Stock);
 
         // declare product data
         let itemData = {};
@@ -635,9 +721,14 @@ class KlavyioAPI {
         return `${productId}-${itemId}`;
     }
 
+    // build external catalog id
+    buildExtrenalCatalogItemId(id, type = 'category') {
+        return `${type}-${id}`;
+    }
+
     // build klaviyo catalog category id
-    getKlaviyoCatalogCategoryId(categoryId) {
-        return `$custom:::$default:::${categoryId}`;
+    getKlaviyoCatalogCategoryId(id, type = 'category') {
+        return `$custom:::$default:::${type}-${id}`;
     }
 
     // build klaviyo catalog item id

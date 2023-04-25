@@ -7,6 +7,7 @@ module.exports = async function (context, myTimer) {
     // util.logger.saveLog('timer-trigger', object.action, object);
     // Put in queue
     // util.queue.enqueueMessage(object);
+    /*
     if (myTimer.isPastDue)
     {
         if(util.environment === "development") {
@@ -16,4 +17,5 @@ module.exports = async function (context, myTimer) {
     if(util.environment === "development") {
         context.log('JavaScript timer trigger function ran!', timeStamp);   
     }
+    */
 };

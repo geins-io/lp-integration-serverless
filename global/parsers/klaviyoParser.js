@@ -32,8 +32,13 @@ class KlavyioParser {
             case 'products':
                 this.productsSync(actionObject);
                 break
+            case 'productRelations':
+                this.productRelationsSync(actionObject);
+                break
             case 'category':
-                this.categorySync(actionObject);
+            case 'brand':
+            case 'supplier':
+                this.catalogCategorySync(actionObject);
                 break
             default:
                 // log error
@@ -42,25 +47,33 @@ class KlavyioParser {
         }
     }
 
-    async categorySync(actionObject) {
+    // push catalog category
+    async catalogCategorySync(actionObject) {
         const klavyioClient = new util.KlavyioAPI();
         const actionPayload = actionObject.payload; 
         const family = actionObject.family;
-        const origin = 'category-sync/'+ actionObject.origin;  
+        const origin = 'catalogCategorySync/'+ actionObject.origin;  
         const action = actionObject.action;
-       
-        // get category info
-        const categories = await this.categoryInfoGet(actionPayload);
-        if(categories === undefined || categories === null || categories.length === 0) {
+        
+        // get category catalog info from the geins api
+        const info = await this.categoryCatalogInfoGet(actionPayload, family);
+        if(!info || info === undefined || info === null || info.length === 0) {
             return;
         }
-        const category = categories[0];
 
-         // define the klaviyo id
-         let klaviyoId = '';
+        // console.log('**** info', info);
 
-        // set broker name
-        const brokerName = util.dataStore.categoryBrokerName(category.CategoryId);
+        // since the api returns an array, we only need the first item 
+        const infoObject = Array.isArray(info) ? info[0] : info;
+
+        // get catalog category 
+        const category = await this.categoryCatalogInfoParse(infoObject, family);
+       
+        // define the klaviyo id
+        let klaviyoId = ''; 
+
+        // set broker name // FIX THIS
+        const brokerName = util.dataStore.categoryBrokerName(category.id, family);
 
         // get the product from the broker table  
         const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(brokerName);
@@ -70,6 +83,8 @@ class KlavyioParser {
             klaviyoId = brokerRow.rowKey;
         }
 
+        //console.log('**** klaviyoId --- from broker :: ', klaviyoId);
+
         // create item if not exists in broker table
         let categorySaved = false;
         if(klaviyoId === '') {
@@ -78,18 +93,25 @@ class KlavyioParser {
             if(response.status === 'ok') {
                 // set the klaviyo product id from response
                 klaviyoId = response.klaviyoId;     
-                categorySaved = true;           
+                categorySaved = true;
+                //console.log('**** klaviyoId --- from create', klaviyoId);           
             } else if (response.status === 'duplicate_category') {
                 // category already exists in Klaviyo
                 // handle this case as you wish, in this case we just update the category in Klaviyo
-                klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(category.CategoryId);
+                klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(category.id, family);
+                //console.log('**** klaviyoId --- from dublicate', klaviyoId); 
                 util.logger.saveLog(origin, action, actionPayload, 'Category already exists in Klaviyo');
             }
         }
+        // TODO:
+        //console.log('**** category', category);
+        //console.log('**** brokerName', brokerName);
+        //console.log('**** brokerRow', brokerRow);        
+        // return;
 
-        // category was not saved at this point in Klaviyo, try update it
+        // category was not saved at this point in Klaviyo, try update/patch it
         if(!categorySaved && klaviyoId !== '') {
-            const response = await klavyioClient.updateCatalogCategory(category, klaviyoId);
+            const response = await klavyioClient.updateCatalogCategory(category, klaviyoId);            
             if(response.status === 'ok' || response.statusCode === 204) {
                 categorySaved = true;
             }            
@@ -110,16 +132,23 @@ class KlavyioParser {
             // stop execution
             return;            
         }
-
     }
 
-    async productsSync(actionObject) {        
+    // push products
+    async productsSync(actionObject) {
         const mgmtClient = new util.MgmtAPI();
-        const actionPayload = actionObject.payload; 
-        const family = actionObject.family;
-        const origin = 'products-sync/'+ actionObject.origin;  
-        const action = actionObject.action;
-        const incremental = actionObject.payload === 'incremental';        
+        const actionPayload = JSON.parse(actionObject.payload) 
+        let page = actionPayload.page;
+        const batchId = actionPayload.batchId;
+        const syncType = actionPayload.type;        
+        const origin = 'products-sync/'+ actionObject.origin;
+        const incremental = syncType === 'incremental';   
+        
+        
+        console.log('**** productsSync actionObject', actionObject);
+        console.log('**** productsSync actionPayload', actionPayload);
+
+
 
         // set latest date to 2000-01-01
         let latestDate = new Date('2000-01-01T00:00:00Z');
@@ -132,51 +161,53 @@ class KlavyioParser {
             } else {                
                 latestDate = new Date(latestEntity.latestDate);               
             }
- 
+
         }
         // convert latestDate to ISO string
         const latestDateStr = latestDate.toISOString();
 
-        let page = 1;
-        let pageCount = 1;
-        let hasMoreRows = true;
-        let products = [];
-        // loop response until HasMoreRows is false        
-        while (hasMoreRows) {
-            const response = await mgmtClient.getProductsPaged(latestDateStr, page);
-            // Get the page data
-            const pageData = response.PageResult;
-            // Set the page count
-            pageCount = pageData.PageCount;
-            // Get the products
-            const productData = response.Resource;
-            // Loop over the products and add to products array
-            for (let i = 0; i < productData.length; i++) {
-                const product = productData[i];
-                products.push(product);                
-            }
-
-            // Set the has more rows
-            hasMoreRows = pageData.HasMoreRows;
-
-            // Set the next page number if there are more rows
-            if(hasMoreRows) {
-                page = pageData.PageNumber + 1;
-            }
+        let hasMoreRows = false;
+        let messages = [];         
+        const response = await mgmtClient.getProductsPaged(latestDateStr, page, batchId);
+        console.log('**** response PageResult', response.PageResult);
+        // Get the page data
+        const pageData = response.PageResult;
+        // Set the has more rows
+        hasMoreRows = pageData.HasMoreRows; 
+        // Get the products
+        const productData = response.Resource;
+        // Loop over the products and add to mssage array
+        for (let i = 0; i < productData.length; i++) {
+            const product = productData[i];
+            messages.push({ action: 'product-sync', payload: product, origin: origin });  
+            
+            //break after 10 products for testing
+            //if(i > 10) {
+            //    break;
+            //}
 
         }
+        // add messages to queue with throttle
+        await util.queue.enqueueMessages(messages, 1000);
 
-        // add products to queque
-        for (let i = 0; i < products.length; i++) {
-            const product = products[i];
-            util.queue.enqueueMessage({ action: 'product-sync', payload: product, origin: actionObject.origin });            
-        }
-
+        // logg sync
         // add record of latest order to log table to be used for incremental sync
         const syncDate = new Date();               
-        util.dataStore.syncTable.saveData({ partitionKey:  'product-sync', latestDate: syncDate, syncedEntities: products.length });
+        util.dataStore.syncTable.saveData({ partitionKey:  'product-sync', latestDate: syncDate, syncedEntities: messages.length });
+
+        // if another page add to queue
+        if(hasMoreRows) {
+            // add next page to queue
+            const nextPayload = JSON.stringify({ 
+                page: pageData.Page + 1,
+                batchId: pageData.BatchId,
+                type: syncType
+            });
+            await util.queue.enqueueMessage({ action: 'products-sync', payload: nextPayload, origin: origin });   
+        }
     }
 
+    // push one product 
     async productSync(actionObject) {
         const klavyioClient = new util.KlavyioAPI();
         const actionPayload = actionObject.payload; 
@@ -184,12 +215,30 @@ class KlavyioParser {
         const origin = 'product-sync/'+ actionObject.origin;  
         const action = actionObject.action;
 
+        // console.log('***** PRODUCT actionPayload::',  actionPayload);
+
         // get product info
         let products = await this.productInfoGet(actionPayload.ProductId || actionPayload);        
         if(products === undefined || products === null || products.length === 0) {
             return;
         }
-        const product = products[0];
+
+        // get the product
+        let product = products[0];
+        //console.log('*****  product::',  product);
+
+        // get product relations and add if not in broker table
+        product.relations = await this.productRelationsGet(product);
+        if( product.relations !== undefined &&  product.relations !== null) {
+            // console.log('*****  rels::',  product.relations);
+            for (let i = 0; i <  product.relations.length; i++) {
+                const relation =  product.relations[i];                
+                // if not in broker table add to klaivyo
+                if(relation.brokerRow == undefined || relation.brokerRow == null) {
+                    await this.catalogCategorySync({ action: 'category-sync', family: relation.family, payload: relation.id, origin: origin });
+                }
+            }
+        }
         
         // define the klaviyo product id
         let klaviyoProductId = '';
@@ -210,6 +259,8 @@ class KlavyioParser {
         if(klaviyoProductId === '') {
             // push product to Klaviyo
             const response = await klavyioClient.createCatalogItem(product);
+            console.log('***** PRODUCT create-response == '+product.ProductId);
+            // console.log('***** PRODUCT create-response::', response);
             if(response.status === 'ok') {
                 // set the klaviyo product id from response
                 klaviyoProductId = response.klaviyoId;     
@@ -219,13 +270,14 @@ class KlavyioParser {
                 // handle this case as you wish, in this case we just update the product
                 klaviyoProductId = klavyioClient.getKlaviyoCatalogItemId(product.ProductId);
                 util.logger.saveLog(origin, action, actionPayload, 'Product already exists in Klaviyo');
-            }            
-        
+            }        
         }
 
         // product was not saved at this point in Klaviyo, try update it
         if(!productSaved && klaviyoProductId !== '') {
             const response = await klavyioClient.updateCatalogItem(product, klaviyoProductId);
+            console.log('***** PRODUCT update-response == '+product.ProductId);
+            // console.log('***** PRODUCT update-response::', response);
             if(response.status === 'ok') {
                 productSaved = true;
             }            
@@ -242,7 +294,8 @@ class KlavyioParser {
         // something went wrong, log error and stop execution
         if(!productSaved) {
             // log error
-            util.logger.saveLog(origin, action, actionPayload, 'Product not saved, , product id:' + product.ProductId);
+            console.error('***** PRODUCT NOT SAVED == '+product.ProductId);
+            util.logger.saveLog(origin, action, actionPayload, 'Product not saved, product id:' + product.ProductId);
             // stop execution
             return;            
         }
@@ -288,7 +341,7 @@ class KlavyioParser {
                 }            
             }
 
-             // save the klaviyo product id to the broker table if it was not saved before
+                // save the klaviyo product id to the broker table if it was not saved before
             if(klaviyoProductItemId !== '' && (brokerRow === undefined || brokerRow === null)) {
                 util.dataStore.productBrokerTable.saveData({
                     partitionKey: itemBrokerName,
@@ -305,43 +358,168 @@ class KlavyioParser {
         }
     }
 
-    // get category info from geins
-    async categoryInfoGet(categoryId) {
+    // push relations to Klaviyo 
+    async productRelationsSync(actionObject) {
+        const klavyioClient = new util.KlavyioAPI();
+        const actionPayload = actionObject.payload; 
+        const family = actionObject.family;
+        const origin = 'product-sync/'+ actionObject.origin;  
+        const action = actionObject.action;
+
+        // get the product from the payload
+        const product = actionPayload.product;
+    }
+
+    // get category info from geins mgmt api
+    async categoryCatalogInfoGet(id, family) {
         // use the geins mgmt api to get the user info
         const mgmtClient = new util.MgmtAPI();
 
         // get user info from the api
         let response = {};
         try {
-           response = await mgmtClient.getCategory(categoryId);
+            if(family == 'category') {
+                response = await mgmtClient.getCategory(id);
+            } else if(family == 'brand') {
+                response = await mgmtClient.getBrand(id);
+            } else if(family == 'supplier') {
+                response = await mgmtClient.getSupplier(id);                
+            }            
         } catch (error) {
             return;
         }
         if(response === undefined || response === null) {
-           return;
+            return;
         }
         // return category
         return response;
-   }
-
-    async productInfoGet(productId) {
-         // use the geins mgmt api to get the user info
-         const mgmtClient = new util.MgmtAPI();
-
-         // get user info from the api
-         let response = {};
-         try {
-            response = await mgmtClient.getProduct(productId);
-         } catch (error) {
-             return;
-         }
-         if(response === undefined || response === null) {
-            return;
-         }
-         // return product
-         return response.Resource;
     }
 
+    // get category info from geins mgmt api
+    async categoryCatalogInfoParse(data, family) {
+        const klavyio = new util.KlavyioAPI();
+        let category = {};
+        if(family == 'category') {
+           const categoryData =  klavyio.buildCategoryData(data);
+           category.id = categoryData.id;
+           category.name = categoryData.name;
+           category.externalId = categoryData.externalId
+        } else if(family == 'brand') {
+            const brandData =  klavyio.buildBrandData(data);
+            category.id = brandData.id;
+            category.name = brandData.name;
+            category.externalId = brandData.externalId
+        } else if(family == 'supplier') {
+            const supplierData =  klavyio.buildSupplierData(data); 
+            category.id = supplierData.id;
+            category.name = supplierData.name;
+            category.externalId = supplierData.externalId
+        }
+
+        return category;       
+    }
+
+    // get product info from geins
+    async productInfoGet(productId) {
+            // use the geins mgmt api to get the user info
+            const mgmtClient = new util.MgmtAPI();
+
+            // get user info from the api
+            let response = {};
+            try {
+            response = await mgmtClient.getProduct(productId);
+            } catch (error) {
+                return;
+            }
+            if(response === undefined || response === null) {
+            return;
+            }
+            // return product
+            return response.Resource;
+    }
+
+    // build product relations from geins product data
+    async productRelationsGet(product) {
+        const klavyioClient = new util.KlavyioAPI();
+        const config = klavyioClient.config;
+        const relations = [];
+
+        // add brand
+        if(config.catalogCategorySync.brands && product.BrandId !== undefined && product.BrandId !== null && product.BrandId !== '') {
+            // get the brand from the broker table
+            const brokerName = util.dataStore.categoryBrokerName(product.BrandId, 'brand');
+            const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(brokerName);
+            const klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(product.BrandId, 'brand');
+            relations.push({
+                id: product.BrandId,
+                name: product.BrandName,
+                family: 'brand',
+                brokerName: brokerName,
+                brokerRow: brokerRow,
+                klaviyoId: klaviyoId,
+            });
+        }
+
+        // add supplier
+        if(config.catalogCategorySync.suppliers == true && product.SupplierId !== undefined && product.SupplierId !== null && product.SupplierId > 0 &&  product.SupplierId !== '') {
+            const brokerName = util.dataStore.categoryBrokerName(product.SupplierId, 'supplier');
+            const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(brokerName);
+            const klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(product.SupplierId, 'supplier');            
+            relations.push({
+                id: product.SupplierId,
+                name: product.SupplierName,
+                family: 'supplier',
+                brokerName: brokerName,
+                brokerRow: brokerRow,
+                klaviyoId: klaviyoId,
+            });
+        }
+        // add categories
+        if (config.catalogCategorySync.categories && product.Categories !== undefined && product.Categories !== null && product.Categories.length > 0) {            
+            
+            for (let i = 0; i < product.Categories.length; i++) {
+                const category = product.Categories[i];
+                const brokerName = util.dataStore.categoryBrokerName(category.CategoryId, 'category');
+                const brokerRow = await util.dataStore.productBrokerTable.getLatestEntity(brokerName);
+                const klaviyoId = klavyioClient.getKlaviyoCatalogCategoryId(category.CategoryId, 'category');  
+                const name = category.Names.find(text => text.LanguageCode === 'sv').Content;
+                
+                // add category if it doesn't exist
+                const categoryExists = relations.find(cat => cat.id === category.CategoryId);
+                if(categoryExists === undefined || categoryExists === null) {
+                    relations.push({
+                        id: category.CategoryId,
+                        name: name,                    
+                        family: 'category',
+                        brokerName: brokerName,
+                        brokerRow: brokerRow,
+                        klaviyoId: klaviyoId,
+                    });
+                }
+            
+            }
+        }
+        return relations;
+    }
+    
+    // build product relations from geins product data
+    getCategoryPath(category, categoryMap, path = []) {
+        if (category === undefined || category === null) {
+            return path;
+        }
+        // console.log(category);
+        const name = category.Names.find(text => text.LanguageCode === 'sv').Content;
+        // console.log('--- ** --- name for:{' + category.CategoryId + '} ', name);
+        path.push(category.CategoryId);
+    
+        // Check if the parent category exists in the map
+        const parentCategory = categoryMap.get(category.ParentCategoryId);
+    
+        // If the parent is found, call the function recursively; otherwise, return the path
+        return parentCategory ? this.getCategoryPath(parentCategory, categoryMap, path) : path;
+    }
+
+    // push users to Klaviyo
     async usersSync(actionObject,) {
         const incremental = actionObject.payload === 'incremental';        
         // get all users from the api
@@ -351,11 +529,10 @@ class KlavyioParser {
         let latestOrderId = 0;
         // to prevent unnessary api calls
         let atLeastOrderId = 0;
-
+      
         // get latest date if incremantal
         if(incremental) {
             const latestEntity = await util.dataStore.syncTable.getLatestEntity('user-sync');
-            console.log('*** latestEntity -> ', latestEntity);
             if(latestEntity === undefined || latestEntity === null) {
                 latestDate = new Date('2000-01-01T00:00:00Z');
             } else {                
@@ -363,6 +540,7 @@ class KlavyioParser {
                 atLeastOrderId = latestEntity.latestOrderId;            
             }
         }       
+        console.log('-----------  usersSync latestDate: ', latestDate);
 
         // get all orders from the api
         const mgmtClient = new util.MgmtAPI();
@@ -388,21 +566,28 @@ class KlavyioParser {
         };
 
         // add the users to the queue
+        let messages = [];
         for (const email of users) {
-            util.queue.enqueueMessage({ action: 'user-sync', payload: email, origin: actionObject.origin });
-            
+            messages.push( { action: 'user-sync', payload: email, origin: actionObject.origin });            
         }
+
+        // send the messages to the queue throttled
+        await util.queue.enqueueMessages(messages, 500);
 
         // add record of latest order to log table to be used for incremental sync       
         util.dataStore.syncTable.saveData({ partitionKey:  'user-sync', latestDate:latestDate.toISOString(), latestOrderId: latestOrderId, syncedEntities: users.length });
     }
 
+    // push one user to Klaviyo
     async userSync(actionObject) {
         const klavyioClient = new util.KlavyioAPI();
         const actionPayload = actionObject.payload; 
         const family = actionObject.family;
         const origin = 'user-sync/'+ actionObject.origin;  
         const action = actionObject.action;
+
+        // console.log('userSync actionObject: ', actionObject.payload);
+        // return;
 
         // Klaviyo Profile ID
         let klaviyoProfileId = '';
@@ -428,7 +613,6 @@ class KlavyioParser {
         if(klaviyoProfileId === '') {
             // push product to Klaviyo
             const response = await klavyioClient.createProfile(user);
-            console.log('*** response -> ', response);
             if(response.status === 'ok') {
                 // set the klaviyo product id from response
                 klaviyoProfileId = response.klaviyoId;     
@@ -443,13 +627,12 @@ class KlavyioParser {
 
         // // user was not saved at this point in Klaviyo, try update it
         if(!userSaved && klaviyoProfileId !== '') {
-            console.log('*** user UPDATE -> ');
             const response = await klavyioClient.updateProfile(user, klaviyoProfileId);
             if(response.status === 'ok') {
                 userSaved = true;
             }            
         }
-       
+        
         // save the klaviyo product id to the broker table if it was not saved before
         if(klaviyoProfileId !== '' && (brokerRow === undefined || brokerRow === null)) {
             util.dataStore.userBrokerTable.saveData({
@@ -468,6 +651,7 @@ class KlavyioParser {
         }
     }
 
+    // get user info from geins mgmt api
     async userInfoGet(email) {
         // use the geins mgmt api to get the user info
         const mgmtClient = new util.MgmtAPI();
@@ -587,6 +771,7 @@ class KlavyioParser {
         return payload;
     }
 
+    // helper_ normalize email
     normalizeEmail(email) {
         if(email === undefined) {
             return '';

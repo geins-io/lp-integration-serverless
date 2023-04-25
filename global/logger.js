@@ -24,6 +24,7 @@ class Logger {
 
   async saveActionToLog(actionObj) {
     try {
+      
       let { origin, action, payload, family } = actionObj;
       if(family) {
         action = `${family}-${action}`;
@@ -36,6 +37,16 @@ class Logger {
   }
 
   async saveLog(origin, action, payload, family) {
+
+    const logEntity = {
+      partitionKey: action,       
+      rowKey: new Date().toISOString(),
+      origin: origin,
+      family: family,
+      payload: JSON.stringify(payload),
+      timestamp: new Date().toISOString(),
+    };
+
     try {
       if(!family) {
         if(action.includes("-")) {
@@ -45,17 +56,11 @@ class Logger {
           family = '';
         }
       }
-      const logEntity = {
-        partitionKey: action,       
-        rowKey: new Date().toISOString(),
-        origin: origin,
-        family: family,
-        payload: JSON.stringify(payload),
-        timestamp: new Date()
-      };
+
       await this.tableClient.createEntity(logEntity);
     } catch (error) {
       console.error("Error saving log:", error.message);
+      console.error("logEntity:", logEntity);      
     }
   }
 

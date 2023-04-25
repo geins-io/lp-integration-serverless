@@ -24,8 +24,15 @@ module.exports = async function (context, req) {
 
     console.log('***** PAYLOAD', payload);
 
-    const klavyioClient = new util.KlavyioAPI();
-    const retval = await klavyioClient.getProfileFromEmail(payload);
+    //const klavyioClient = new util.KlavyioAPI();
+    //const retval = await klavyioClient.getProfileFromEmail(payload);
+
+    const mgmtClient = new util.MgmtAPI();
+    //console.log('***** mgmtClient', mgmtClient);
+    const retval = await mgmtClient.getCategory(19);
+    
+
+
     console.log('***** RETVAL', retval);
     response = util.Response.success(retval);
 

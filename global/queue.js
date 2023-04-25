@@ -23,6 +23,21 @@ class Queue {
       console.error("Error enqueuing message:", error.message);
     }
   }
+
+  // throttle is in milliseconds
+  async enqueueMessages(messages, throttle = 0) {
+    try {
+      await this.initPromise;
+      for (const message of messages) {
+        await this.queueClient.sendMessage(Buffer.from(JSON.stringify(message)).toString("base64"));
+        await new Promise((resolve) => setTimeout(resolve, throttle));
+      }
+    } catch (error) {
+      console.error("Error enqueuing messages:", error.message);
+    }
+  }
+
+
 }
 
 module.exports = Queue;
