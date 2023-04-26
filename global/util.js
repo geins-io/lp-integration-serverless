@@ -19,10 +19,10 @@ const queue = new Queue(queueConnectionString, queueName);
 
 // Add data stores here 
 const dataStore = {
-  userBrokerTable: new TableStore(accountName, accountKey, 'klaviyoUserBrokerTable'),
-  productBrokerTable: new TableStore(accountName, accountKey, 'klaviyoProductBrokerTable'),
-  syncTable: new TableStore(accountName, accountKey, 'klaviyoSyncTable'),
-  blob: new BlobStore(accountName, accountKey, 'klaviyo-blobs'),
+  userBrokerTable: new TableStore(accountName, accountKey, 'kayoKlaviyoUserBrokerTable'),
+  productBrokerTable: new TableStore(accountName, accountKey, 'kayoKlaviyoProductBrokerTable'),
+  syncTable: new TableStore(accountName, accountKey, 'kayoKlaviyoSyncTable'),
+  blob: new BlobStore(accountName, accountKey, 'kayo-klaviyo-blobs'),
   
   // borker names
   productBrokerName(productId) {

@@ -152,9 +152,6 @@ class KlavyioAPI {
         // build the body fom the payload
         let body = this.buildCatalogItemBody(payload);
 
-        // console.log('------ body ',body);
-        // console.log('------ body ',body.data.relationships);
-
         // set new item values
         body.data.attributes.integration_type = '$custom';
         body.data.attributes.catalog_type = '$default';
@@ -360,7 +357,7 @@ class KlavyioAPI {
                         address1: payload.location.address1 || '',
                         address2: payload.location.address2 || '',
                         city: payload.location.city || '',
-                        country: payload.location.city || '',
+                        country: payload.location.country || '',
                         zip: payload.location.zip || '',
                     },
                     properties: {                        

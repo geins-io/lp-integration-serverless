@@ -104,9 +104,7 @@ class MgmtAPI {
         if(!page){
             page = 1;        
         }
-
-        console.log('--- queryProductsPaged page: ' + page);
-
+        
         //return the orders
         return await new Promise((resolve, reject) => {
             productApi.queryProductsPaged(page, query, opts, (error, data, response) => {

@@ -77,7 +77,6 @@ class FeedParser {
             let page = 1;
             let pageCount = 1;
             while (page <= pageCount) {
-                console.log('*** LOOP  *****', page, pageCount);
                 const response = await new Promise((resolve, reject) => {
                     apiInstance.queryProductsPaged(page, query, opts, (error, data, response) => {
                         if (error) {
