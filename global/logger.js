@@ -24,17 +24,29 @@ class Logger {
 
   async saveActionToLog(actionObj) {
     try {
+      
       let { origin, action, payload, family } = actionObj;
       if(family) {
         action = `${family}-${action}`;
       }
-      this.saveLog(origin, action, payload, family);
+      
+      this.saveLog(origin, action, JSON.stringify(payload), family);
     } catch (error) {
       console.error("Error saving log:", error.message);
     }
   }
 
   async saveLog(origin, action, payload, family) {
+
+    const logEntity = {
+      partitionKey: action,       
+      rowKey: new Date().toISOString(),
+      origin: origin,
+      family: family,
+      payload: JSON.stringify(payload),
+      timestamp: new Date().toISOString(),
+    };
+
     try {
       if(!family) {
         if(action.includes("-")) {
@@ -44,17 +56,11 @@ class Logger {
           family = '';
         }
       }
-      const logEntity = {
-        partitionKey: action,       
-        rowKey: new Date().toISOString(),
-        origin: origin,
-        family: family,
-        payload: JSON.stringify(payload),
-        timestamp: new Date()
-      };
+
       await this.tableClient.createEntity(logEntity);
     } catch (error) {
       console.error("Error saving log:", error.message);
+      console.error("logEntity:", logEntity);      
     }
   }
 
@@ -64,9 +70,9 @@ class Logger {
       const logs = [];
 
       let queryOptions = {};
-
+      let filterString = '';
       if (filter) {
-        let filterString = '';
+       
         if (filter.action) {
           filterString += `PartitionKey eq '${filter.action}'`;
         }
@@ -81,8 +87,9 @@ class Logger {
         }
         queryOptions = { filter: filterString };
       }
-
-      const entities = this.tableClient.listEntities(queryOptions);
+      const entities = this.tableClient.listEntities({
+        queryOptions: { filter: filterString }
+      });
       for await (const entity of entities) {
         logs.push(entity);
       }

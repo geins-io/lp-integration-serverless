@@ -20,10 +20,24 @@ module.exports = async function (context, req) {
         return;
     }
     // put in queue
-    util.queue.enqueueMessage(object);
+    //util.queue.enqueueMessage(object);
+
+    console.log('***** PAYLOAD', payload);
+
+    //const klavyioClient = new util.KlavyioAPI();
+    //const retval = await klavyioClient.getProfileFromEmail(payload);
+
+    const mgmtClient = new util.MgmtAPI();
+    //console.log('***** mgmtClient', mgmtClient);
+    const retval = await mgmtClient.getCategory(19);
+    
+
+
+    console.log('***** RETVAL', retval);
+    response = util.Response.success(retval);
 
     // set success response    
-    response = util.Response.success();
+    // response = util.Response.success();
     
     // return response
     context.res = response;

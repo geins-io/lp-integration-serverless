@@ -27,12 +27,29 @@ class TableStore {
       const { partitionKey, rowKey, ...rest } = dataObj;
       const entity = {
         partitionKey: partitionKey,
-        rowKey: new Date().toISOString(),
+        rowKey: rowKey || new Date().toISOString(),        
         ...rest,
-      };
+      };      
       await this.tableClient.createEntity(entity);
     } catch (error) {
       console.error("Error saving table data:", error.message);
+      console.error("Object:", dataObj);
+    }
+  }
+  
+  async createOrUpdateEntity(dataObj) {
+    try {
+      const { partitionKey, rowKey, ...rest } = dataObj;
+      const entity = {
+        partitionKey: partitionKey,
+        rowKey: rowKey || new Date().toISOString(),
+        ...rest,
+      };
+      console.log("Creating or updating entity:", entity);
+  
+      await this.tableClient.upsertEntity(entity);
+    } catch (error) {
+      console.error("Error creating or updating entity:", error.message);
     }
   }
 
@@ -41,10 +58,9 @@ class TableStore {
       await this.initPromise;
       const data = [];
 
-      let queryOptions = {};
-
+      let filterString = '';
       if (filter) {
-        let filterString = '';
+        
         if (filter.partitionKey) {
           filterString += `PartitionKey eq '${filter.partitionKey}'`;
         }
@@ -54,10 +70,10 @@ class TableStore {
         if (filter.startTime && filter.endTime) {
           filterString += (filterString ? ' and ' : '') + `Timestamp gt ${filter.startTime} and Timestamp lt ${filter.endTime}`;
         }
-        queryOptions = { filter: filterString };
       }
-
-      const entities = this.tableClient.listEntities(queryOptions);
+      const entities = this.tableClient.listEntities({
+        queryOptions: { filter: filterString }
+      });
       for await (const entity of entities) {
         data.push(entity);
       }
@@ -69,23 +85,51 @@ class TableStore {
     }
   }
 
-  async getLatestTimestamp(partitionKey) {
+  async getLatestEntity(partitionKey) {
     try {
       const queryOptions = {
         filter: `PartitionKey eq '${partitionKey}'`,
-        top: 1,
-        orderBy: [{ Timestamp: "desc" }]
       };
-      const entities = this.tableClient.listEntities(queryOptions);
+      const entities = this.tableClient.listEntities({ queryOptions });
+      let latestEntity = null;
       for await (const entity of entities) {
-        return entity.Timestamp;
+        if (!latestEntity || entity.timestamp > latestEntity.timestamp) {
+          latestEntity = entity;
+        }
       }
-      return null;
+      return latestEntity;
     } catch (error) {
-      console.error("Error fetching latest timestamp:", error.message);
+      console.error("Error fetching latest entity:", error.message);
+      return null;
+    }
+  }  
+
+  async getLatestTimestamp(partitionKey) {
+    try {
+        return returngetLatestEntity(partitionKey).timestamp
+    } catch (error) {
+      console.error("Error fetching latest entity:", error.message);
       return null;
     }
   }
+
+  async deleteAllEntitiesByPartitionKey(partitionKey) {
+    try {
+      const queryOptions = {
+        filter: `PartitionKey eq '${partitionKey}'`
+      };
+      const entities = this.tableClient.listEntities({ queryOptions });
+  
+      for await (const entity of entities) {
+        await this.tableClient.deleteEntity(entity.partitionKey, entity.rowKey);
+      }
+  
+      console.log(`All entities with partition key '${partitionKey}' have been deleted.`);
+    } catch (error) {
+      console.error(`Error deleting entities with partition key '${partitionKey}':`, error.message);
+    }
+  }
+
 }
 
 module.exports = TableStore;
