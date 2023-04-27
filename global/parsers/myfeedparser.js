@@ -69,7 +69,7 @@ class FeedParser {
         try {
             const mgmtClient = new util.MgmtAPI();
             let apiInstance = new mgmtClient.api.ProductApi();
-            let query = new mgmtClient.api.ProductModelsProductQuery()
+            let query = new mgmtClient.api.ProductModelsProductQuery();
             let opts = {
                 'include': "names,items,prices,categories,parameters,variants,markets,images,feeds,urls,shorttexts"
             };
