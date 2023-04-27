@@ -13,10 +13,7 @@ class BlobStore {
         const exists = await this.containerClient.exists();
         if (!exists) {
           await this.containerClient.create();
-          console.log(`Container "${this.containerName}" created successfully.`);
-        } else {
-          console.log(`Container "${this.containerName}" already exists.`);
-        }
+        } 
       } catch (error) {
         console.error(`Error creating "${this.containerName}" container if not exists:`, error.message);
       }

@@ -29,11 +29,32 @@ class TableStore {
         partitionKey: partitionKey,
         rowKey: rowKey || new Date().toISOString(),        
         ...rest,
+<<<<<<< HEAD
       };
       console.log("Saving data to table:", entity)
+=======
+      };      
+>>>>>>> d8418323551adcf474797defeb0ed8faf1999659
       await this.tableClient.createEntity(entity);
     } catch (error) {
       console.error("Error saving table data:", error.message);
+      console.error("Object:", dataObj);
+    }
+  }
+  
+  async createOrUpdateEntity(dataObj) {
+    try {
+      const { partitionKey, rowKey, ...rest } = dataObj;
+      const entity = {
+        partitionKey: partitionKey,
+        rowKey: rowKey || new Date().toISOString(),
+        ...rest,
+      };
+      console.log("Creating or updating entity:", entity);
+  
+      await this.tableClient.upsertEntity(entity);
+    } catch (error) {
+      console.error("Error creating or updating entity:", error.message);
     }
   }
   
@@ -74,7 +95,10 @@ class TableStore {
       const entities = this.tableClient.listEntities({
         queryOptions: { filter: filterString }
       });
+<<<<<<< HEAD
      
+=======
+>>>>>>> d8418323551adcf474797defeb0ed8faf1999659
       for await (const entity of entities) {
         data.push(entity);
       }

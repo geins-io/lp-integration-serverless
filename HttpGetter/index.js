@@ -1,4 +1,5 @@
 const util = require("../global/util.js");
+var KlaviyoSdk = require('klaviyo-api');
 module.exports = async function (context, req) {
     // set default response
     let response = util.Response.unauthorized();
@@ -16,7 +17,22 @@ module.exports = async function (context, req) {
         context.res = response;
         return;
     }
-    var retval = {};
+
+    // TEST TEST ------------------------------
+
+    const fieldsProfile = ["email"]
+    const fieldsList = ["name"]
+
+    // --------------------------------------
+    
+    var profileId = "01GJAZVKHNEKK5CRHXR0FBP9W4";
+    var opts = {};
+
+    const klavyioClient = new util.KlavyioAPI();
+   // const retval =  await klavyioClient.getProfile(profileId, opts);
+    const retval =  await klavyioClient.getProfiles(opts);
+
+
 
     // **************************************
     // *********** LOGIC GOES HERE **********
