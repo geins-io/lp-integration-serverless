@@ -29,12 +29,7 @@ class TableStore {
         partitionKey: partitionKey,
         rowKey: rowKey || new Date().toISOString(),        
         ...rest,
-<<<<<<< HEAD
-      };
-      console.log("Saving data to table:", entity)
-=======
       };      
->>>>>>> d8418323551adcf474797defeb0ed8faf1999659
       await this.tableClient.createEntity(entity);
     } catch (error) {
       console.error("Error saving table data:", error.message);
@@ -95,10 +90,6 @@ class TableStore {
       const entities = this.tableClient.listEntities({
         queryOptions: { filter: filterString }
       });
-<<<<<<< HEAD
-     
-=======
->>>>>>> d8418323551adcf474797defeb0ed8faf1999659
       for await (const entity of entities) {
         data.push(entity);
       }

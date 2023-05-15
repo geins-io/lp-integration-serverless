@@ -12,6 +12,9 @@ module.exports = async function (context, item) {
     // util.logger.saveActionToLog(action);
     // process the action
     switch(action.familyAndAction()) {
+        case "feed-generate":
+            // add parser to the output and output to the action
+            action.output.push(new util.Output(util.OutputType.STORE_SAVE, new FeedParser()));   
         case "user-sync":
         case "users-sync": 
         case "product-sync":
@@ -19,6 +22,7 @@ module.exports = async function (context, item) {
         case "category-sync":
         case "brand-sync":
         case "supplier-sync":
+            // add parser to the output and output to the action
             action.output.push(new util.Output(util.OutputType.API_PUSH, new KlavyioParser()));            
             break;
         default:
